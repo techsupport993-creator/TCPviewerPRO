@@ -63,17 +63,39 @@ public sealed partial class MainForm
             BackColor = bg, Margin = new Padding(3, 0, 0, 10)
         };
         var releases = Button("DOWNLOADS / RELEASES", cyan, PaletteFor(activeTheme).DarkButton);
-        releases.Width = 210;
+        releases.Width = 195;
         releases.Click += (_, _) => OpenProjectLink(
             "https://github.com/techsupport993-creator/TCPviewerPRO/releases/latest");
         var source = Button("VIEW SOURCE CODE", green, PaletteFor(activeTheme).DarkButton);
-        source.Width = 170;
+        source.Width = 150;
         source.Click += (_, _) => OpenProjectLink(
             "https://github.com/techsupport993-creator/TCPviewerPRO");
         var update = Button("UPDATE SETTINGS", panel2, cyan);
-        update.Width = 170;
+        update.Width = 145;
         update.Click += (_, _) => tabs.SelectedIndex = 11;
-        actions.Controls.AddRange(new Control[] { releases, source, update });
+        var copyInfo = Button("COPY APP INFO", panel2, cyan);
+        copyInfo.Width = 155;
+        copyInfo.Click += (_, _) =>
+        {
+            // Copy only basic product diagnostics — never process lists,
+            // network addresses, machine name, usernames or credentials.
+            string info = $"TCP Viewer Pro v{version}\\n" +
+                          $"Theme: {activeTheme}\\n" +
+                          $"Windows: {Environment.OSVersion.Version}\\n" +
+                          $"App architecture: {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}\\n" +
+                          $"Update repository: {updatePrefs.Repository}";
+            try
+            {
+                Clipboard.SetText(info.Replace("\\n", Environment.NewLine));
+                footer.Text = "Copied application information (no network data).";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Could not copy application information: " + ex.Message,
+                    "Copy app info", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        };
+        actions.Controls.AddRange(new Control[] { releases, source, update, copyInfo });
         scroll.Controls.Add(actions);
 
         scroll.Controls.Add(new Label
