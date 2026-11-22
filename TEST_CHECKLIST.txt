@@ -1,0 +1,30 @@
+TCP VIEWER PRO v6 — FIRST-RUN TEST CHECKLIST
+===========================================
+[ ] Run Build-TCPViewerPro.bat; confirm successful publish of TCPViewerPro.exe.
+[ ] Launch EXE on Windows 10/11 x64; verify the main table populates.
+[ ] Confirm firewall/action buttons ask for confirmation before changing anything.
+[ ] Open the publisher dropdown; switch between Verified MS and Unknown filters.
+[ ] Verify some Microsoft OS executables may be "Trusted signer unknown" when
+    only the Windows catalog signature is available.
+[ ] Double-click firefox.exe or another active process; confirm Inspector opens.
+[ ] Confirm the inspector displays command line/parent PID or "Unavailable".
+[ ] Confirm SHA-256 eventually appears for a readable executable.
+[ ] Enable GROUP PROCESS; check group counts and process headings.
+[ ] Click column headings; verify numeric PID and port sorting.
+[ ] Click COLUMNS and hide a column; restart app and verify it remains hidden.
+[ ] Change a TCP state color in SETTINGS; restart and verify persistence.
+[ ] Pause monitoring, wait, and check that automatic updates stop.
+[ ] Press F5 while paused; verify a single manual refresh.
+[ ] Export filtered connection rows to CSV.
+
+If the build fails, send a screenshot of the FULL compiler error output.
+If the app throws an error, send the exception dialog and which action caused it.
+
+[v6.1 green theme]
+[ ] First launch defaults to Matrix Green palette (background, sidebar, headers)
+[ ] Sidebar > Settings: Cyber Blue switches app to original blue without restart
+[ ] Settings: Matrix Green switches app back without restart
+[ ] Theme selection persists after closing/reopening TCPViewerPro.exe
+[ ] Changing app theme does not alter custom TCP state colors or red .exe setting
+[ ] Pause/resume, search, inspector and Microsoft publisher filter still work
+[ ] No DataGridView modal formatting errors occur when changing themes

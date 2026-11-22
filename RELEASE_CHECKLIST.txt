@@ -1,0 +1,18 @@
+PUBLISHING CHECKLIST: TCP VIEWER PRO
+===================================
+[ ] GitHub repository created and saved under Settings -> Application Updates
+[ ] .csproj version incremented to newer version than installed EXE
+[ ] Published Windows x64 self-contained EXE
+[ ] Test installed EXE, including the green cat icon
+[ ] Release tag matches version: for example v6.3.0
+[ ] Release asset name is exactly TCPViewerPro.exe
+[ ] GitHub asset digest provided, or upload TCPViewerPro.exe.sha256
+[ ] Release notes explain what changed
+[ ] Signing certificate is the same for currently trusted and new EXE
+[ ] Test update on noncritical Windows test machine
+[ ] Verify old EXE backup exists, settings persist, app restarts
+
+If the GitHub API lacks digest, get the binary hash on Windows:
+certutil -hashfile TCPViewerPro.exe SHA256
+Create a UTF-8 file TCPViewerPro.exe.sha256 containing the 64-character hash.
+The update checker looks for a 64-character SHA-256 hex value in that file.

@@ -1,0 +1,19 @@
+TCP VIEWER PRO 6.2 — UPDATE AND ICON TEST PLAN
+==============================================
+[ ] Extract ZIP; run Build-TCPViewerPro.bat with .NET 8 SDK installed
+[ ] Windows Explorer shows green cat icon on TCPViewerPro.exe
+[ ] Window title/taskbar shows cat icon
+[ ] Settings shows Application Updates and Matrix Green theme
+[ ] No outbound update request occurs until repository is configured
+[ ] Set repository OWNER/REPO and click Save Source
+[ ] Check Now handles missing release cleanly with an error message
+[ ] Publish v6.3.0 with asset TCPViewerPro.exe and valid digest
+[ ] Start v6.2 and Check Now -> offered v6.3.0, with prompt
+[ ] Decline install -> current EXE stays intact
+[ ] Accept install -> verify hash, close old EXE, swap, launch v6.3.0
+[ ] Confirm .previous backup and all user settings persisted
+[ ] Alter remote checksum -> install refuses binary
+[ ] Delete network connection -> graceful error, old EXE still runs
+[ ] If EXE is signed, test signer mismatch -> install blocked
+[ ] Unwritable folder -> error without silently elevating privileges
+[ ] Test internet-free startup and TCP/UDP viewer still works
