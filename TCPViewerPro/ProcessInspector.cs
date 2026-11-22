@@ -7,6 +7,9 @@ namespace TCPViewerPro;
 
 public sealed partial class MainForm
 {
+    // Keep inspector windows in sync if the user changes the theme while one is open.
+    private readonly List<Form> openInspectorDialogs = new();
+
     [DllImport("ntdll.dll")]
     private static extern int NtQueryInformationProcess(IntPtr handle, int informationClass,
         IntPtr information, int length, out int returnedLength);
@@ -137,24 +140,25 @@ public sealed partial class MainForm
             Font = new Font("Consolas", 9.2F), Text = "Reading process details and calculating SHA-256…"
         };
         layout.Controls.Add(report, 0, 1);
-        var endpointsList = new ListView
-        {
-            Dock = DockStyle.Fill, BackColor = panel, ForeColor = Color.Gainsboro,
-            View = View.Details, FullRowSelect = true, GridLines = true, HideSelection = false
-        };
-        foreach (var (label, width) in new[]
-        {
-            ("PROTOCOL", 95), ("LOCAL", 300), ("REMOTE", 300), ("STATE", 170)
-        }) endpointsList.Columns.Add(label, width);
+        // DataGridView gives this inspection window the same dark, theme-aware
+        // headers, rows, selection colors and resize behavior as the main tables.
+        var endpointsGrid = new DataGridView();
+        ConfigureGrid(endpointsGrid);
+        endpointsGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        endpointsGrid.Columns.Add(new DataGridViewTextBoxColumn
+            { Name = "Protocol", HeaderText = "PROTOCOL", FillWeight = 16, MinimumWidth = 95 });
+        endpointsGrid.Columns.Add(new DataGridViewTextBoxColumn
+            { Name = "Local", HeaderText = "LOCAL", FillWeight = 34, MinimumWidth = 210 });
+        endpointsGrid.Columns.Add(new DataGridViewTextBoxColumn
+            { Name = "Remote", HeaderText = "REMOTE", FillWeight = 34, MinimumWidth = 210 });
+        endpointsGrid.Columns.Add(new DataGridViewTextBoxColumn
+            { Name = "State", HeaderText = "STATE", FillWeight = 16, MinimumWidth = 115 });
         foreach (var endpoint in endpoints)
-        {
-            var row = new ListViewItem(endpoint.Protocol);
-            row.SubItems.Add($"{endpoint.LocalAddress}:{endpoint.LocalPort}");
-            row.SubItems.Add($"{endpoint.RemoteAddress}:{endpoint.RemotePort}");
-            row.SubItems.Add(endpoint.State);
-            endpointsList.Items.Add(row);
-        }
-        layout.Controls.Add(endpointsList, 0, 2);
+            endpointsGrid.Rows.Add(endpoint.Protocol,
+                $"{endpoint.LocalAddress}:{endpoint.LocalPort}",
+                $"{endpoint.RemoteAddress}:{endpoint.RemotePort}", endpoint.State);
+        endpointsGrid.ClearSelection();
+        layout.Controls.Add(endpointsGrid, 0, 2);
         var controls = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
         var copy = Button("COPY REPORT", green, bg); copy.Width = 135;
         copy.Click += (_, _) => { if (report.TextLength > 0) Clipboard.SetText(report.Text); };
@@ -174,6 +178,8 @@ public sealed partial class MainForm
         controls.Controls.AddRange(new Control[] { copy, open, close });
         layout.Controls.Add(controls, 0, 3);
         dialog.Controls.Add(layout);
+        openInspectorDialogs.Add(dialog);
+        dialog.FormClosed += (_, _) => openInspectorDialogs.Remove(dialog);
         dialog.Show(this);
 
         try
