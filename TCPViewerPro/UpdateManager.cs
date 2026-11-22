@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -42,7 +43,8 @@ public sealed partial class MainForm
             Timeout = TimeSpan.FromSeconds(45)
         };
         client.DefaultRequestHeaders.UserAgent.Add(
-            new ProductInfoHeaderValue("TCPViewerPro", "6.2"));
+            new ProductInfoHeaderValue("TCPViewerPro",
+                typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "6.4.2"));
         client.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         return client;
@@ -245,12 +247,13 @@ public sealed partial class MainForm
         if (response.StatusCode == HttpStatusCode.NotFound)
             throw new InvalidOperationException("No public GitHub release found for that repository.");
         response.EnsureSuccessStatusCode();
-        using var doc = JsonDocument.Parse(await response.Content.ReadAsStreamAsync());
+        using var doc = JsonDocument.Parse((ReadOnlyMemory<byte>)
+            await ReadBoundedContentAsync(response.Content, 1024 * 1024));
         var root = doc.RootElement;
         string tag = root.GetProperty("tag_name").GetString() ?? "";
-        string versionText = tag.TrimStart('v', 'V');
-        if (!Version.TryParse(versionText, out Version? version))
-            throw new InvalidOperationException("Latest release tag must look like v6.3.0.");
+        if (!Regex.IsMatch(tag, @"\Av[0-9]+\.[0-9]+\.[0-9]+\z") ||
+            !Version.TryParse(tag[1..], out Version? version))
+            throw new InvalidOperationException("Latest release tag must be exactly vMAJOR.MINOR.PATCH.");
 
         string notes = root.TryGetProperty("body", out var b) ? b.GetString() ?? "" : "";
         JsonElement? exeAsset = null;
@@ -266,7 +269,7 @@ public sealed partial class MainForm
 
         var binary = exeAsset.Value;
         string url = binary.GetProperty("browser_download_url").GetString() ?? "";
-        ValidateReleaseUrl(url, repo);
+        ValidateReleaseUrl(url, repo, tag, "TCPViewerPro.exe");
         long size = binary.GetProperty("size").GetInt64();
         if (size < 50_000 || size > 400_000_000)
             throw new InvalidOperationException("Unexpected update executable size.");
@@ -277,14 +280,11 @@ public sealed partial class MainForm
         if (!ValidSha256(sha) && shaAsset.HasValue)
         {
             string shaUrl = shaAsset.Value.GetProperty("browser_download_url").GetString() ?? "";
-            ValidateReleaseUrl(shaUrl, repo);
+            ValidateReleaseUrl(shaUrl, repo, tag, "TCPViewerPro.exe.sha256");
             using var shaResponse = await UpdateHttp.GetAsync(shaUrl);
             shaResponse.EnsureSuccessStatusCode();
-            if (shaResponse.Content.Headers.ContentLength > 4096)
-                throw new InvalidOperationException("Checksum file too large.");
-            string shaText = await shaResponse.Content.ReadAsStringAsync();
-            var m = Regex.Match(shaText, @"\b[0-9a-fA-F]{64}\b");
-            if (m.Success) sha = m.Value;
+            string shaText = Encoding.UTF8.GetString(await ReadBoundedContentAsync(shaResponse.Content, 4096));
+            sha = SecurityGuards.ReadReleaseSha256Manifest(shaText) ?? "";
         }
         if (!ValidSha256(sha))
             throw new InvalidOperationException("Release is missing a usable SHA-256 digest. " +
@@ -292,12 +292,28 @@ public sealed partial class MainForm
         return new AvailableRelease(version, tag, url, sha, size, notes);
     }
 
-    private static void ValidateReleaseUrl(string url, string repo)
+    private static void ValidateReleaseUrl(string url, string repo, string tag, string filename)
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https" ||
-            !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) ||
-            !uri.AbsolutePath.StartsWith($"/{repo}/releases/download/", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("The release asset URL is not under the configured GitHub repository.");
+        if (!SecurityGuards.IsExpectedReleaseAssetUrl(url, repo, tag, filename))
+            throw new InvalidOperationException(
+                "Release URL is not the expected GitHub asset for this repository, tag and filename.");
+    }
+
+    private static async Task<byte[]> ReadBoundedContentAsync(HttpContent content, int limit)
+    {
+        if (content.Headers.ContentLength is long length && length > limit)
+            throw new InvalidOperationException("GitHub response is larger than expected.");
+        await using var stream = await content.ReadAsStreamAsync();
+        using var data = new MemoryStream();
+        byte[] buffer = new byte[8192];
+        int count;
+        while ((count = await stream.ReadAsync(buffer.AsMemory())) != 0)
+        {
+            if (data.Length + count > limit)
+                throw new InvalidOperationException("GitHub response exceeds allowed size.");
+            data.Write(buffer, 0, count);
+        }
+        return data.ToArray();
     }
 
     private static bool ValidSha256(string sha) => Regex.IsMatch(sha, @"\A[0-9a-fA-F]{64}\z");
@@ -309,7 +325,7 @@ public sealed partial class MainForm
         {
             string updateDir = Path.Combine(Environment.GetFolderPath(
                 Environment.SpecialFolder.LocalApplicationData), "TCPViewerPro", "Updates",
-                "v" + release.Version);
+                "v" + release.Version, Environment.ProcessId + "-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(updateDir);
             stagedPath = Path.Combine(updateDir, "TCPViewerPro.exe");
 
@@ -357,8 +373,11 @@ public sealed partial class MainForm
             var newSignature = SignatureVerifier.Check(stagedPath);
             bool priorTrusted = oldSignature.Category.StartsWith("Verified", StringComparison.OrdinalIgnoreCase);
             if (priorTrusted && (!newSignature.Category.StartsWith("Verified", StringComparison.OrdinalIgnoreCase) ||
-                                 !oldSignature.Signer.Equals(newSignature.Signer, StringComparison.OrdinalIgnoreCase)))
-                throw new InvalidOperationException("Publisher signature differs from the installed app. Update blocked.");
+                 !SecurityGuards.SameSignerFingerprint(
+                    oldSignature.CertificateFingerprintSha256, newSignature.CertificateFingerprintSha256)))
+                throw new InvalidOperationException(
+                    "The update's verified signing certificate does not match the installed application. " +
+                    "Automatic update blocked; certificate rotation requires a separately verified manual upgrade.");
 
             if (!priorTrusted)
             {
