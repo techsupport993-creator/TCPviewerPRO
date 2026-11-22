@@ -117,7 +117,12 @@ internal static class NetworkDiagnosticsService
             address.Equals(IPAddress.IPv6Any))
             return false;
         if (address.AddressFamily == AddressFamily.InterNetwork)
-            return !address.Equals(IPAddress.Broadcast) && !address.IsIPv6Multicast;
+        {
+            byte[] ipv4 = address.GetAddressBytes();
+            return ipv4[0] is > 0 and < 224 && // Reject unspecified, multicast and reserved
+                   !(ipv4[0] == 169 && ipv4[1] == 254) && // Link-local
+                   !address.Equals(IPAddress.Broadcast);
+        }
         return address.AddressFamily == AddressFamily.InterNetworkV6 &&
                !address.IsIPv6Multicast;
     }
