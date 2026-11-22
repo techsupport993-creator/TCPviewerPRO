@@ -1,0 +1,54 @@
+name: Import TCP Viewer Pro v6.2 source
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-tcpviewerpro.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Extract verified project archive into repository
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import zipfile
+
+          archive = Path("TCPViewerPro_GitHub_Ready.zip")
+          raw = archive.read_bytes()
+          git_sha = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
+          expected = "c4cb1b939a04b0e0906e0f34eb1c9faa078502f3"
+          if git_sha != expected:
+              raise RuntimeError("Archive differs from inspected TCP Viewer Pro v6.2 upload")
+          with zipfile.ZipFile(archive) as z:
+              members = [m for m in z.infolist() if not m.is_dir()]
+              if len(members) != 22:
+                  raise RuntimeError(f"Unexpected member count: {len(members)}")
+              for m in members:
+                  target = Path(m.filename)
+                  if target.is_absolute() or ".." in target.parts or "\\" in m.filename:
+                      raise RuntimeError("Unsafe archive path: " + m.filename)
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(z.read(m))
+                  print("Imported", m.filename)
+          PY
+      - name: Commit extracted source, assets, and workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .gitignore NuGet.Config RELEASE_CHECKLIST.txt Build-TCPViewerPro.bat README.md TEST_CHECKLIST.txt README.txt UPDATE_TEST_CHECKLIST.txt TCPViewerPro/ .github/workflows/windows-build.yml
+          git diff --cached --stat
+          git diff --cached --quiet && exit 0
+          git commit -m "Import TCP Viewer Pro v6.2 source, cat icons and Windows build"
+          git push
