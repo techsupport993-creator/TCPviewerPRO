@@ -2,7 +2,7 @@
 
 A Windows network connection monitor and process-investigation desktop app built using C# WinForms.
 
-**Current source version: 6.2.0** (Matrix Green theme and cyber-cat icon)
+**Current source version: 6.3.0** (Matrix Green theme, cyber-cat icon and simplified About page)
 
 ## Download TCP Viewer Pro (Windows 10/11, x64)
 
@@ -21,6 +21,8 @@ Extracting ZIP files or installing Python or the .NET runtime is **not required*
 - Connection history, new-connection alerts, reverse DNS, CSV exports
 - Confirmed IPv4 TCP disconnect and Windows Firewall outbound-IP blocking
 - Optional GitHub Releases update checks with SHA-256 verification and explicit approval
+- Theme-aware Process Inspector connections table, including recoloring when the theme changes
+- About page with the running version, release downloads, source code, and privacy information
 
 Some sidebar modules are planned placeholders, **not yet implemented**.
 
@@ -44,6 +46,17 @@ To publish a future version, increment `<Version>` and `<FileVersion>` in the pr
 ## Automatic updates
 
 The default update repository is `techsupport993-creator/TCPviewerPRO`. Updates require a newer **GitHub Release** containing a compatible Windows EXE and valid SHA-256 digest/checksum. Uploading source alone does not publish an update. The application asks before installing.
+
+## Updating from 6.2.0 to 6.3.0
+
+To test the complete update flow on a Windows computer, keep the existing v6.2.0 executable in a **writable folder**, close other copies of the app, then select **Settings > Application Updates > CHECK NOW**. When v6.3.0 is published, approve the update; the app should download, verify, replace the old EXE, restart, and retain your theme and settings. On success, check **About** for version 6.3.0. If the app is installed in a protected folder such as Program Files, replace the EXE manually instead. Do not perform the first upgrade test on a critical computer; retain a backup.
+
+## What's new in v6.3.0
+
+- Process Inspector uses the same theme-aware, resizable network endpoints table as the main dashboard.
+- Inspector windows update colors if you switch between Matrix Green and Cyber Blue.
+- New About page shows the installed version and links directly to official releases and source code.
+- Version is visible in the status bar.
 
 ## Important security and testing notes
 
