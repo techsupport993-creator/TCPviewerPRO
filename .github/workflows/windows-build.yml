@@ -47,6 +47,7 @@ jobs:
             "exists=false" >> $env:GITHUB_OUTPUT
             Write-Host "Release $tag does not exist; will publish it after a successful build."
           }
+          $global:LASTEXITCODE = 0
       - name: Restore
         run: dotnet restore TCPViewerPro/TCPViewerPro.csproj --configfile NuGet.Config -r win-x64
       - name: Publish Windows x64 standalone EXE
