@@ -694,15 +694,15 @@ public sealed partial class MainForm : Form
         }
 
         string localWarning = SecurityGuards.IsPrivateOrSharedAddress(ip)
-            ? "\\n\\nWARNING: This is a local/private or shared-network address. " +
+            ? "\n\nWARNING: This is a local/private or shared-network address. " +
               "Blocking it may disrupt printers, routers, servers or other devices on your network."
             : "";
         var confirmation = MessageBox.Show(this,
-            $"Create an OUTBOUND Windows Firewall block rule for {ip}?\\n" +
-            $"Process shown: {r.Process} (PID {r.Pid})\\n" +
+            $"Create an OUTBOUND Windows Firewall block rule for {ip}?\n" +
+            $"Process shown: {r.Process} (PID {r.Pid})\n" +
             "This blocks the IP for ALL applications, not only this process. " +
             "It may interrupt other network connections." + localWarning +
-            "\\n\\nAdministrator approval will be required. Continue?",
+            "\n\nAdministrator approval will be required. Continue?",
             "Confirm system-wide firewall change", MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
         if (confirmation != DialogResult.Yes) return;
@@ -777,8 +777,8 @@ public sealed partial class MainForm : Form
                 return;
             }
             if (MessageBox.Show(this,
-                $"Terminate {currentName} (PID {r.Pid})?\\n\\nExecutable: {currentPath}" +
-                "\\nUnsaved work in the application may be lost.",
+                $"Terminate {currentName} (PID {r.Pid})?\n\nExecutable: {currentPath}" +
+                "\nUnsaved work in the application may be lost.",
                 "Confirm process termination", MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
 
