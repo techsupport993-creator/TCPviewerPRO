@@ -114,4 +114,65 @@ if (OperatingSystem.IsWindows() && Environment.ProcessPath is { } runningExe)
         "exclude the updating process from running-copy detection");
 }
 
+
+// Network Diagnostics v6.5: only properly formed hosts can be passed to DNS or Ping.
+Assert(NetworkDiagnosticsService.TryNormalizeHost(" 1.1.1.1 ", out var pingHost)
+       && pingHost == "1.1.1.1", "ping target trims whitespace safely");
+Assert(NetworkDiagnosticsService.TryNormalizeHost("example.com", out _),
+    "normal DNS hostname accepted");
+Assert(NetworkDiagnosticsService.TryNormalizeHost("::1", out _),
+    "IPv6 address accepted");
+Assert(NetworkDiagnosticsService.TryNormalizeHost("my-device.local", out _),
+    "local DNS hostname accepted");
+Assert(!NetworkDiagnosticsService.TryNormalizeHost("", out _),
+    "empty diagnostic target refused");
+Assert(!NetworkDiagnosticsService.TryNormalizeHost("https://example.com/path", out _),
+    "URL is not accepted as a hostname");
+Assert(!NetworkDiagnosticsService.TryNormalizeHost("example.com:443", out _),
+    "host-and-port string refused");
+Assert(!NetworkDiagnosticsService.TryNormalizeHost("example.com\nother.com", out _),
+    "newline injection refused");
+Assert(!NetworkDiagnosticsService.TryNormalizeHost(new string('a', 254), out _),
+    "overlong hostname refused");
+
+Assert(NetworkDiagnosticsService.FormatSpeed(-1) == "Unknown",
+    "unavailable adapter link speed shown as unknown");
+Assert(NetworkDiagnosticsService.FormatSpeed(100_000_000) == "100 Mbps",
+    "100 Mbps link speed formatted correctly");
+Assert(NetworkDiagnosticsService.FormatSpeed(1_000_000_000) == "1 Gbps",
+    "gigabit adapter speed formatted correctly");
+
+Assert(!NetworkDiagnosticsService.IsUsableGateway(IPAddress.Parse("0.0.0.0")),
+    "unspecified IPv4 gateway ignored");
+Assert(!NetworkDiagnosticsService.IsUsableGateway(IPAddress.Parse("127.0.0.1")),
+    "loopback gateway ignored");
+Assert(!NetworkDiagnosticsService.IsUsableGateway(IPAddress.Parse("224.0.0.1")),
+    "multicast gateway ignored");
+Assert(!NetworkDiagnosticsService.IsUsableGateway(IPAddress.Parse("ff02::1")),
+    "IPv6 multicast gateway ignored");
+Assert(NetworkDiagnosticsService.IsUsableGateway(IPAddress.Parse("192.168.1.1")),
+    "ordinary IPv4 router gateway accepted");
+
+var noGateway = new NetworkDiagnosticsService.AdapterSnapshot(
+    "Disconnected", "Down", "Ethernet", "None", "None", "None", "None",
+    "Unavailable", "Unknown", new[] { IPAddress.Parse("192.168.5.1") });
+var wifiGateway = new NetworkDiagnosticsService.AdapterSnapshot(
+    "Wi-Fi", "Up", "Wireless80211", "192.168.1.100", "None",
+    "192.168.1.1", "192.168.1.1", "Unavailable", "866 Mbps",
+    new[] { IPAddress.Parse("192.168.1.1") });
+var virtualGateway = new NetworkDiagnosticsService.AdapterSnapshot(
+    "Virtual Adapter", "Up", "Tunnel", "10.0.0.20", "None", "10.0.0.1",
+    "None", "Unavailable", "100 Mbps", new[] { IPAddress.Parse("10.0.0.1") });
+var selectedGateway = NetworkDiagnosticsService.ChooseGateway(
+    new[] { noGateway, virtualGateway, wifiGateway });
+Assert(selectedGateway?.Adapter.Name == "Wi-Fi" &&
+       selectedGateway?.Gateway.Equals(IPAddress.Parse("192.168.1.1")) == true,
+    "gateway prefers active physical network adapter");
+Assert(NetworkDiagnosticsService.ChooseGateway(new[] { noGateway }) is null,
+    "offline adapters do not supply active gateway");
+Assert(NetworkDiagnosticsService.FormatAdapterReport(new[] { wifiGateway })
+        .Contains("192.168.1.1") &&
+       NetworkDiagnosticsService.FormatAdapterReport(new[] { wifiGateway })
+        .Contains("Wi-Fi"), "adapter report includes reported gateway and adapter");
+
 Console.WriteLine($"All {passed} security checks passed.");
