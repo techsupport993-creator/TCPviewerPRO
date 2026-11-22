@@ -128,6 +128,7 @@ public sealed partial class MainForm : Form
         tabs.TabPages.Add(BuildPlannedFeaturePage("DNS MONITOR", "DNS activity and resolution", "Track DNS query metadata, cache lookups, compare answers, and flag unusual query patterns. Requires an event-based DNS collector."));
         tabs.TabPages.Add(BuildPlannedFeaturePage("NETWORK DIAGNOSTICS", "Connectivity troubleshooting", "Run gateway reachability, DNS resolution, route, adapter, and latency tests with exportable diagnostic reports."));
         tabs.TabPages.Add(BuildColorSettingsPage());
+        tabs.TabPages.Add(BuildAboutPage());
 
         var workspace = new Panel { Dock = DockStyle.Fill, BackColor = bg };
         navPanel.Dock = DockStyle.Left;
@@ -158,6 +159,7 @@ public sealed partial class MainForm : Form
         AddNavButton("DNS MONITOR", 9);
         AddNavButton("NETWORK DIAGNOSTICS", 10);
         AddNavButton("SETTINGS", 11);
+        AddNavButton("ABOUT", 12);
         tabs.SelectedIndexChanged += (_, _) => UpdateNavSelection();
         workspace.Controls.Add(tabs);
         workspace.Controls.Add(navPanel);
@@ -166,7 +168,7 @@ public sealed partial class MainForm : Form
 
         var strip = new StatusStrip { BackColor = panel, SizingGrip = false };
         footer.ForeColor = muted; strip.Items.Add(footer);
-        var right = new ToolStripStatusLabel("TCP Viewer Pro  •  Local machine") { ForeColor = muted, Spring = true, TextAlign = ContentAlignment.MiddleRight };
+        var right = new ToolStripStatusLabel($"TCP Viewer Pro v{typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "?"}  •  Local machine") { ForeColor = muted, Spring = true, TextAlign = ContentAlignment.MiddleRight };
         strip.Items.Add(right); root.Controls.Add(strip,0,3);
     }
 
