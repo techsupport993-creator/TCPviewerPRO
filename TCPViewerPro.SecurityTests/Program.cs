@@ -208,8 +208,7 @@ var health = new NetworkHealthService.HealthResult(
     Array.Empty<NetworkDiagnosticsService.AdapterSnapshot>(),
     new DateTime(2026, 11, 22));
 Assert(health.Headline.Contains("attention") &&
-       health.ToReport().Contains("LOCAL ROUTER", StringComparison.OrdinalIgnoreCase) == false &&
-       health.ToReport().Contains("Local router") &&
+       health.ToReport().Split("Local router", StringSplitOptions.None).Length == 2 &&
        health.ToReport().Contains("Internet test"),
     "beginner report preserves exact checks without raw adapter duplication");
 var greenHealth = new NetworkHealthService.HealthResult(
