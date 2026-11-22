@@ -16,6 +16,8 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Security regression tests
+        run: dotnet run --project TCPViewerPro.SecurityTests/TCPViewerPro.SecurityTests.csproj --configuration Release
       - name: Restore
         run: dotnet restore TCPViewerPro/TCPViewerPro.csproj --configfile NuGet.Config -r win-x64
       - name: Publish Windows x64
