@@ -2,7 +2,7 @@
 
 A Windows network connection monitor and process-investigation desktop app built using C# WinForms.
 
-**Current source version: 6.4.1** (fixes automatic updates from version-labelled EXE filenames)
+**Current source version: 6.4.2** (security hardening and automated regression tests)
 
 ## Download TCP Viewer Pro (Windows 10/11, x64)
 
@@ -25,6 +25,23 @@ Extracting ZIP files or installing Python or the .NET runtime is **not required*
 - About page with the running version, release downloads, source code, and privacy information
 
 Some sidebar modules are planned placeholders, **not yet implemented**.
+
+## Security improvements in v6.4.2
+
+- Safer process termination: system-process protection and PID, start-time and executable identity checks.
+- Safer firewall changes: explicit system-wide warnings, the Windows System32 `netsh.exe`, structured arguments, and exit-status verification.
+- Improved update validation: exact release-asset URLs, limited metadata sizes and strict checksum parsing.
+- Signed-update continuity: if the installed app is signed and verified, the updated EXE must use the same certificate fingerprint.
+- CSV formula-injection protection for reports opened in spreadsheet software.
+- Automated security regression tests in GitHub Actions before publishing new releases.
+
+**The current release is not digitally code-signed.** See [CODE_SIGNING.md](CODE_SIGNING.md) for certificate, timestamping, and safe GitHub workflow requirements, and [SECURITY.md](SECURITY.md) for the security model and known limitations. A successful build or matching SHA-256 checksum alone does not mean Windows considers the software trusted.
+
+You can run the dependency-free tests with:
+
+```powershell
+dotnet run --project TCPViewerPro.SecurityTests/TCPViewerPro.SecurityTests.csproj -c Release
+```
 
 ## Build (Windows 10/11)
 
