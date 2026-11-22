@@ -53,7 +53,7 @@ public sealed partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "TCP Viewer Pro";
+        Text = $"TCP Viewer Pro v{typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "?"}";
         Width = 1450; Height = 850; MinimumSize = new Size(1050, 650);
         BackColor = bg; ForeColor = Color.White;
         Font = new Font("Segoe UI", 9F);

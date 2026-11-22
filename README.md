@@ -2,7 +2,7 @@
 
 A Windows network connection monitor and process-investigation desktop app built using C# WinForms.
 
-**Current source version: 6.3.0** (Matrix Green theme, cyber-cat icon and simplified About page)
+**Current source version: 6.4.0** (small usability release for testing updates from v6.3.0)
 
 ## Download TCP Viewer Pro (Windows 10/11, x64)
 
@@ -57,6 +57,24 @@ To test the complete update flow on a Windows computer, keep the existing v6.2.0
 - Inspector windows update colors if you switch between Matrix Green and Cyber Blue.
 - New About page shows the installed version and links directly to official releases and source code.
 - Version is visible in the status bar.
+
+## v6.4.0 changes
+
+- The main window title now shows the installed version.
+- The About page adds **COPY APP INFO**, which copies basic version, theme, OS and update-source details without copying connections or usernames.
+- The Process Inspector adds **COPY ENDPOINTS** for the current process snapshot (tab-separated text).
+- No changes to the v6.3.0 updater installation algorithm, so the v6.3.0 to v6.4.0 upgrade tests the existing updater.
+
+## Verify an automatic upgrade from v6.3.0
+
+1. Keep a backup of your original `TCPViewerPro.exe` and run the **v6.3.0** copy from a folder you can write to (for example `Documents\\TCPViewerProTest`), **not** `Program Files`.
+2. Open **Settings > Application Updates > CHECK NOW** in v6.3.0; the expected result is **v6.4.0 available**. If the app already says v6.4.0, you started the new executable and haven't tested an upgrade.
+3. Approve the update prompt and, for an unsigned build, review the publisher warning carefully. The updater should verify the SHA-256, replace the executable, and restart.
+4. Verify the new window title says **v6.4.0** and the About page shows **6.4.0**.
+5. Close/reopen the app; check your saved Matrix Green/Cyber Blue theme and table layout. In the original EXE folder, confirm the rollback copy `TCPViewerPro.exe.previous` exists.
+6. Test **COPY APP INFO** and **COPY ENDPOINTS**. If any step fails, keep your backup and report the exact message. Do not disable antivirus or Windows security to force the update.
+
+This test is not complete until it succeeds on a real Windows PC; a successful GitHub build only verifies compilation and packaging.
 
 ## Important security and testing notes
 
