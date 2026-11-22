@@ -8,5 +8,6 @@
   <ItemGroup>
     <Compile Include="../TCPViewerPro/SecurityGuards.cs" Link="SecurityGuards.cs" />
     <Compile Include="../TCPViewerPro/UpdateInstanceGuard.cs" Link="UpdateInstanceGuard.cs" />
+    <Compile Include="../TCPViewerPro/NetworkDiagnosticsService.cs" Link="NetworkDiagnosticsService.cs" />
   </ItemGroup>
 </Project>
