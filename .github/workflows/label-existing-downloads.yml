@@ -1,0 +1,41 @@
+name: Label existing release downloads
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/label-existing-downloads.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  add-versioned-downloads:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ['6.2.0', '6.3.0', '6.4.0']
+    steps:
+      - name: Add version-labelled copies without replacing original assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          tag="v${VERSION}"
+          named="TCPViewerPro_${tag}.exe"
+          sha_name="${named}.sha256"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fqx "$named"; then
+            echo "$named is already present — original files are unchanged."
+            exit 0
+          fi
+          mkdir -p original
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern 'TCPViewerPro.exe' --dir original
+          test -s original/TCPViewerPro.exe
+          mv original/TCPViewerPro.exe "$named"
+          sha256sum "$named" > "$sha_name"
+          gh release upload "$tag" "$named" "$sha_name" --repo "$GITHUB_REPOSITORY"
+          echo "Added version-labelled EXE and checksum to $tag"

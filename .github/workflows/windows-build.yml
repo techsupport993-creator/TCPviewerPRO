@@ -59,6 +59,16 @@ jobs:
           if (-not (Test-Path $exe)) { throw 'Published TCPViewerPro.exe was not found.' }
           ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() + '  TCPViewerPro.exe') |
             Set-Content -Encoding ascii TCPViewerPro.exe.sha256
+      - name: Prepare version-labelled download copies
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          $source = 'TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe'
+          $name = "TCPViewerPro_v$env:VERSION.exe"
+          Copy-Item $source $name
+          $hash = (Get-FileHash $name -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $name" | Set-Content -Encoding ascii "$name.sha256"
       - name: Upload Windows build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -66,6 +76,8 @@ jobs:
           path: |
             TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe
             TCPViewerPro.exe.sha256
+            TCPViewerPro_v*.exe
+            TCPViewerPro_v*.exe.sha256
           if-no-files-found: error
       - name: Publish public GitHub Release
         if: steps.release.outputs.exists == 'false'
@@ -77,15 +89,17 @@ jobs:
         run: |
           $exe = 'TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe'
           $checksum = 'TCPViewerPro.exe.sha256'
+          $versionedExe = "TCPViewerPro_v$env:VERSION.exe"
+          $versionedChecksum = "$versionedExe.sha256"
           $notes = @"
           TCP Viewer Pro v$env:VERSION — Windows 10/11 x64.
           
           Includes the Matrix Green theme, cat application icon, TCP/UDP monitoring, process investigation and opt-in update checks.
           
-          Download TCPViewerPro.exe below. This is a self-contained .NET 8 executable; no Python or separate .NET runtime install is required.
+          Download TCPViewerPro_v$env:VERSION.exe for an easy-to-identify versioned filename, or TCPViewerPro.exe for existing in-app update compatibility. Both contain identical bytes. No Python or separate .NET runtime is needed.
           Check TCPViewerPro.exe.sha256 to verify the download.
           
           Note: The build passed Windows CI but has not been independently runtime-tested or code-signed. Windows may display an unknown-publisher warning.
           "@
-          gh release create $env:RELEASE_TAG $exe $checksum --repo $env:GITHUB_REPOSITORY --title "TCP Viewer Pro v$env:VERSION" --notes $notes --target $env:GITHUB_SHA --latest
+          gh release create $env:RELEASE_TAG $exe $checksum $versionedExe $versionedChecksum --repo $env:GITHUB_REPOSITORY --title "TCP Viewer Pro v$env:VERSION" --notes $notes --target $env:GITHUB_SHA --latest
           if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed.' }
