@@ -70,41 +70,68 @@ internal static class SelfUpdateBootstrapper
             }
             catch (ArgumentException) { /* The original process already exited. */ }
 
-            string temporaryDestination = destination + ".update-pending";
-            string backupDestination = destination + ".previous";
+            // Separate updater instances can target the same EXE at once.
+            // Coordinate by exact destination, not just by file name.
+            using var updateMutex = new Mutex(false,
+                UpdateInstanceGuard.MutexNameForExecutable(destination));
+            bool ownsMutex = false;
             try
             {
-                // Copy to the target volume first. File.Replace swaps the new
-                // executable in one filesystem operation while keeping backup.
-                File.Copy(self, temporaryDestination, overwrite: true);
-                Exception? lastError = null;
-                for (int attempt = 0; attempt < 12; attempt++)
+                try { ownsMutex = updateMutex.WaitOne(TimeSpan.FromSeconds(15)); }
+                catch (AbandonedMutexException) { ownsMutex = true; }
+                if (!ownsMutex)
+                    throw new InvalidOperationException(
+                        "Another update is already in progress for this executable. Try again afterward.");
+
+                var otherInstances = UpdateInstanceGuard.FindOtherRunningCopies(
+                    destination, oldPid);
+                if (otherInstances.Count != 0)
+                    throw new InvalidOperationException(UpdateInstanceGuard.BlockingMessage(
+                        otherInstances, Path.GetFileName(destination)));
+
+                string temporaryDestination = destination + ".update-pending";
+                string backupDestination = destination + ".previous";
+                try
                 {
-                    try
+                    // Copy to the target volume first. File.Replace swaps the
+                    // new EXE in one operation while preserving a rollback copy.
+                    File.Copy(self, temporaryDestination, overwrite: true);
+                    Exception? lastError = null;
+                    for (int attempt = 0; attempt < 12; attempt++)
                     {
-                        if (File.Exists(destination))
+                        try
+                        {
+                            if (!File.Exists(destination))
+                                throw new FileNotFoundException(
+                                    "Original application EXE disappeared during the update.", destination);
                             File.Replace(temporaryDestination, destination, backupDestination, true);
-                        else
-                            File.Move(temporaryDestination, destination);
-                        lastError = null;
-                        break;
+                            lastError = null;
+                            break;
+                        }
+                        catch (IOException ex) { lastError = ex; Thread.Sleep(500); }
+                        catch (UnauthorizedAccessException ex) { lastError = ex; break; }
                     }
-                    catch (IOException ex) { lastError = ex; Thread.Sleep(500); }
-                    catch (UnauthorizedAccessException ex) { lastError = ex; break; }
+                    if (lastError is not null)
+                        throw new IOException(
+                            "Windows could not replace the executable. Close any other open copies " +
+                            "of the same EXE, then retry. " + lastError.Message, lastError);
                 }
-                if (lastError is not null) throw lastError;
+                finally
+                {
+                    try { if (File.Exists(temporaryDestination)) File.Delete(temporaryDestination); }
+                    catch { }
+                }
+
+                Process.Start(new ProcessStartInfo(destination)
+                {
+                    UseShellExecute = true,
+                    WorkingDirectory = Path.GetDirectoryName(destination)!
+                });
             }
             finally
             {
-                try { if (File.Exists(temporaryDestination)) File.Delete(temporaryDestination); }
-                catch { }
+                if (ownsMutex) updateMutex.ReleaseMutex();
             }
-
-            Process.Start(new ProcessStartInfo(destination)
-            {
-                UseShellExecute = true,
-                WorkingDirectory = Path.GetDirectoryName(destination)!
-            });
         }
         catch (Exception ex)
         {
