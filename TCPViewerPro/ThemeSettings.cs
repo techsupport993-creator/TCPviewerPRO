@@ -115,6 +115,20 @@ public sealed partial class MainForm
             ApplyGridPalette(grid, next);
             ApplyGridPalette(processGrid, next);
 
+            // Process Inspector windows are owned forms, not child controls.
+            // Recolor them as well, including their endpoint DataGridView headers.
+            foreach (var inspector in openInspectorDialogs.ToArray())
+                if (!inspector.IsDisposed)
+                {
+                    inspector.SuspendLayout();
+                    try
+                    {
+                        RecolorTree(inspector, old, next);
+                        inspector.Invalidate(true);
+                    }
+                    finally { inspector.ResumeLayout(true); }
+                }
+
             // The status strip's items are not children in Control.Controls.
             foreach (Control control in Descendants(this))
             {
