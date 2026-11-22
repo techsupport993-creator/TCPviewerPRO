@@ -176,20 +176,21 @@ public sealed partial class MainForm
         if (e.RowIndex < 0 || e.ColumnIndex < 0 ||
             grid.Rows[e.RowIndex].DataBoundItem is not ConnectionRow row) return;
 
+        if (e.CellStyle is not DataGridViewCellStyle style) return;
         string col = grid.Columns[e.ColumnIndex].DataPropertyName;
         bool exe = row.Path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
                    row.Process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
         if (highlightExe && exe && (col == "Process" || col == "Path"))
         {
-            e.CellStyle.ForeColor = connectionColors["EXE"];
-            e.CellStyle.SelectionForeColor = connectionColors["EXE"];
+            style.ForeColor = connectionColors["EXE"];
+            style.SelectionForeColor = connectionColors["EXE"];
             // Only the colors change; leave value conversion to DataGridView.
             return;
         }
 
         if (col == "PublisherCategory")
         {
-            e.CellStyle.ForeColor = row.PublisherCategory switch
+            style.ForeColor = row.PublisherCategory switch
             {
                 "Verified Microsoft" => green,
                 "Verified third party" => cyan,
@@ -197,20 +198,20 @@ public sealed partial class MainForm
                 "Unverified" => Color.FromArgb(255, 190, 90),
                 _ => muted
             };
-            e.CellStyle.SelectionForeColor = e.CellStyle.ForeColor;
+            style.SelectionForeColor = style.ForeColor;
             return;
         }
         if (col == "Group" && row.Group.Length > 0)
         {
-            e.CellStyle.ForeColor = cyan;
-            e.CellStyle.SelectionForeColor = cyan;
+            style.ForeColor = cyan;
+            style.SelectionForeColor = cyan;
             return;
         }
         string key = row.Protocol.Equals("UDP", StringComparison.OrdinalIgnoreCase) ? "UDP" : row.State;
         if (connectionColors.TryGetValue(key, out var color))
         {
-            e.CellStyle.ForeColor = color;
-            e.CellStyle.SelectionForeColor = color;
+            style.ForeColor = color;
+            style.SelectionForeColor = color;
             // Only the colors change; leave value conversion to DataGridView.
         }
     }
@@ -219,14 +220,15 @@ public sealed partial class MainForm
     {
         if (!highlightExe || e.RowIndex < 0 || e.ColumnIndex < 0) return;
         if (e.ColumnIndex != 1 && e.ColumnIndex != 5) return;
+        if (e.CellStyle is not DataGridViewCellStyle style) return;
         var row = processGrid.Rows[e.RowIndex];
         var path = Convert.ToString(row.Cells[5].Value) ?? "";
         var name = Convert.ToString(row.Cells[1].Value) ?? "";
         if (path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
             name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
         {
-            e.CellStyle.ForeColor = connectionColors["EXE"];
-            e.CellStyle.SelectionForeColor = connectionColors["EXE"];
+            style.ForeColor = connectionColors["EXE"];
+            style.SelectionForeColor = connectionColors["EXE"];
             // Only the colors change; leave value conversion to DataGridView.
         }
     }
