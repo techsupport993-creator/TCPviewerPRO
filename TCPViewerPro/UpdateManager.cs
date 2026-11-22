@@ -21,6 +21,10 @@ public sealed partial class MainForm
         public string Repository { get; set; } = "techsupport993-creator/TCPviewerPRO";
         public bool AutoCheck { get; set; } = true;
         public DateTimeOffset LastCheckedUtc { get; set; } = DateTimeOffset.MinValue;
+        // Cache update checks for the exact EXE and version that was checked.
+        // Multiple copies must not inherit each other's 24-hour suppression.
+        public string LastCheckedExecutablePath { get; set; } = "";
+        public string LastCheckedExecutableVersion { get; set; } = "";
     }
 
     private sealed record AvailableRelease(Version Version, string Tag,
@@ -60,6 +64,8 @@ public sealed partial class MainForm
             updatePrefs.Repository = saved.Repository ?? "";
             updatePrefs.AutoCheck = saved.AutoCheck;
             updatePrefs.LastCheckedUtc = saved.LastCheckedUtc;
+            updatePrefs.LastCheckedExecutablePath = saved.LastCheckedExecutablePath ?? "";
+            updatePrefs.LastCheckedExecutableVersion = saved.LastCheckedExecutableVersion ?? "";
         }
         catch { /* Malformed settings must not prevent the network monitor opening. */ }
     }
@@ -88,8 +94,8 @@ public sealed partial class MainForm
         });
         scroll.Controls.Add(new Label
         {
-            Text = "Automatically check GitHub Releases when launching the app (at most once every 24 hours). " +
-                   "Installing an update always requires your approval.",
+            Text = "Automatically check GitHub Releases when launching the app (at most once every 24 hours " +
+                   "per running copy/version). Installing always requires your approval.",
             ForeColor = muted, Width = 580, Height = 42, Margin = new Padding(4, 0, 4, 6)
         });
         scroll.Controls.Add(new Label
@@ -116,6 +122,12 @@ public sealed partial class MainForm
             SaveUpdatePreferences();
         };
         scroll.Controls.Add(autoBox);
+        scroll.Controls.Add(new Label
+        {
+            Text = "Multiple copies: only the EXE you opened will update. Other downloaded EXEs remain " +
+                   "unchanged. Close any other windows using the same EXE before installing.",
+            ForeColor = muted, Width = 600, Height = 42, Margin = new Padding(6, 0, 4, 10)
+        });
 
         var buttons = new FlowLayoutPanel
         {
@@ -186,7 +198,15 @@ public sealed partial class MainForm
     private async Task AutoCheckForUpdatesAsync()
     {
         if (!updatePrefs.AutoCheck || !ValidRepo(updatePrefs.Repository)) return;
-        if (DateTimeOffset.UtcNow - updatePrefs.LastCheckedUtc < TimeSpan.FromHours(24)) return;
+        string currentPath = Path.GetFullPath(Application.ExecutablePath);
+        string version = (typeof(MainForm).Assembly.GetName().Version ??
+            new Version(0, 0)).ToString();
+        bool sameCopy = UpdateInstanceGuard.SameExePath(
+            currentPath, updatePrefs.LastCheckedExecutablePath);
+        if (sameCopy &&
+            updatePrefs.LastCheckedExecutableVersion.Equals(version, StringComparison.Ordinal) &&
+            DateTimeOffset.UtcNow - updatePrefs.LastCheckedUtc < TimeSpan.FromHours(24))
+            return;
         await CheckForUpdatesAsync(silent: true);
     }
 
@@ -208,6 +228,9 @@ public sealed partial class MainForm
         {
             AvailableRelease release = await FindLatestReleaseAsync(repo);
             updatePrefs.LastCheckedUtc = DateTimeOffset.UtcNow;
+            updatePrefs.LastCheckedExecutablePath = Path.GetFullPath(Application.ExecutablePath);
+            updatePrefs.LastCheckedExecutableVersion = (typeof(MainForm).Assembly.GetName().Version ??
+                new Version(0, 0)).ToString();
             SaveUpdatePreferences();
             Version currentVersion = typeof(MainForm).Assembly.GetName().Version ?? new Version(0, 0);
             if (release.Version <= currentVersion)
@@ -224,10 +247,24 @@ public sealed partial class MainForm
                 $"New TCP Viewer Pro release: {release.Tag}\n" +
                 $"Installed: {currentVersion}\n\n" +
                 $"Publisher: github.com/{repo}\n\n{summary}\n\n" +
-                "Download and install this update? The app will restart. " +
+                $"This file will be updated:\n{Application.ExecutablePath}\n\n" +
+                "Other downloaded copies are NOT updated. The app will restart. " +
                 "Only trust release repositories controlled by the developer.",
                 "Update available", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (accept != DialogResult.Yes) return;
+            // Two windows opened from the *same* file can keep it locked.
+            // Different EXEs in other locations are independent copies.
+            var otherInstances = UpdateInstanceGuard.FindOtherRunningCopies(
+                Application.ExecutablePath, Environment.ProcessId);
+            if (otherInstances.Count != 0)
+            {
+                string msg = UpdateInstanceGuard.BlockingMessage(otherInstances,
+                    Path.GetFileName(Application.ExecutablePath));
+                SetUpdateStatus("Close other windows using this executable before installing.");
+                MessageBox.Show(this, msg, "Other copy still running",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             await DownloadAndStageUpdateAsync(release, repo);
         }
         catch (Exception ex)
