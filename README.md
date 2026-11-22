@@ -8,7 +8,7 @@ A Windows network connection monitor and process-investigation desktop app built
 
 **[Download the latest TCPViewerPro.exe](https://github.com/techsupport993-creator/TCPviewerPRO/releases/latest/download/TCPViewerPro.exe)**
 
-Or browse the **[GitHub Releases page](https://github.com/techsupport993-creator/TCPviewerPRO/releases)** to see version notes and download the matching `TCPViewerPro.exe.sha256` checksum.
+Or browse the **[GitHub Releases page](https://github.com/techsupport993-creator/TCPviewerPRO/releases)** to download files labeled with their version, such as `TCPViewerPro_v6.4.0.exe`, and the corresponding `.sha256` checksum. Releases also retain `TCPViewerPro.exe` for compatibility with older automatic updaters. Both EXEs for a given release contain identical bytes.
 
 Extracting ZIP files or installing Python or the .NET runtime is **not required** for the self-contained EXE. Windows may display an unknown-publisher warning until code signing is configured; verify the release checksum and download only from this repository.
 
@@ -39,9 +39,15 @@ dotnet publish TCPViewerPro/TCPViewerPro.csproj -c Release -r win-x64 --self-con
 
 The result is designed as a self-contained, single-file Windows x64 executable.
 
-GitHub Actions builds a standalone Windows x64 executable and stores an Actions build artifact. When the version in `TCPViewerPro/TCPViewerPro.csproj` has not been released yet, the workflow also creates a public GitHub Release containing `TCPViewerPro.exe` and `TCPViewerPro.exe.sha256`.
+GitHub Actions builds a standalone Windows x64 executable and stores an Actions build artifact. When the version in `TCPViewerPro/TCPViewerPro.csproj` has not been released yet, the workflow also creates a public GitHub Release containing a version-labelled EXE and checksum as well as the stable `TCPViewerPro.exe` and `TCPViewerPro.exe.sha256` updater assets.
 
 To publish a future version, increment `<Version>` and `<FileVersion>` in the project file, commit the change to `main`, and confirm the workflow succeeds. The public download link above always points to the latest published release. Tags must match the project version (for example `v6.3.0`).
+
+## Filename and automatic updater compatibility
+
+- Public download filenames include the full version, for example `TCPViewerPro_v6.2.0.exe`, `TCPViewerPro_v6.3.0.exe` and `TCPViewerPro_v6.4.0.exe`.
+- For **in-app automatic updates**, run the executable named **`TCPViewerPro.exe`** in a writable folder. The current updater (including v6.3.0 and v6.4.0) refuses to replace other names. Version-labelled downloads are for identifying, keeping and manually launching different versions; a filename alone does not establish the version of an installed program.
+- To keep multiple auto-updatable installations, create separate folders named `v6.2.0`, `v6.3.0` and so on, each containing a file named `TCPViewerPro.exe`. Do not overwrite your existing versions.
 
 ## Automatic updates
 
