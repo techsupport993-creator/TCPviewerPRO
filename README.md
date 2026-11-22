@@ -2,7 +2,7 @@
 
 A Windows network connection monitor and process-investigation desktop app built using C# WinForms.
 
-**Current source version: 6.6.0** (Simple and Advanced Network Diagnostics)
+**Current source version: 6.6.1** (Simple Mode card layout fix)
 
 ## Download TCP Viewer Pro (Windows 10/11, x64)
 
@@ -38,6 +38,13 @@ When multiple copies of TCP Viewer Pro are present, **each EXE is its own instal
 - Added Windows regression tests for file identity, per-target mutex naming, and detection of running copies.
 
 **Test on Windows:** Make two files in separate folders (for example, v6.2.0 and v6.4.2). Open the older EXE and update it to v6.4.3. Reopen the other file; its version should remain unchanged. Then launch the same EXE twice, attempt its next update, and verify you receive a clear request to close the extra instance rather than an unexplained installation failure. The app remains unsigned; do not turn off Windows protections to run it.
+
+## Fixed in v6.6.1 — clearer Simple Mode result cards
+
+- Corrects a layout bug visible in v6.6.0: the green "Responded" status appeared above the test name and explanatory text was clipped.
+- Each card now has dedicated rows in this order: **Test name → Result → Plain-English explanation**, with enough space for the explanation.
+- All checks and Advanced Mode are unchanged. The fix is cosmetic; no additional network activity or permissions are needed.
+- Verify on Windows at your usual display scaling, then switch between Matrix Green and Cyber Blue to check readability.
 
 ## New in v6.6.0 — Simple / Advanced diagnostics
 
