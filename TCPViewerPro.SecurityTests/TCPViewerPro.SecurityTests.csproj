@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../TCPViewerPro/SecurityGuards.cs" Link="SecurityGuards.cs" />
+    <Compile Include="../TCPViewerPro/UpdateInstanceGuard.cs" Link="UpdateInstanceGuard.cs" />
   </ItemGroup>
 </Project>

@@ -2,7 +2,7 @@
 
 A Windows network connection monitor and process-investigation desktop app built using C# WinForms.
 
-**Current source version: 6.4.2** (security hardening and automated regression tests)
+**Current source version: 6.4.3** (corrects update behavior when multiple copies exist)
 
 ## Download TCP Viewer Pro (Windows 10/11, x64)
 
@@ -25,6 +25,18 @@ Extracting ZIP files or installing Python or the .NET runtime is **not required*
 - About page with the running version, release downloads, source code, and privacy information
 
 Some sidebar modules are planned placeholders, **not yet implemented**.
+
+## Update reliability improvements in v6.4.3
+
+When multiple copies of TCP Viewer Pro are present, **each EXE is its own installation** and can be a different version. The automatic updater replaces only the **currently opened executable**, keeping its existing filename; it does not silently replace or delete other copies in Downloads or other folders.
+
+- **Independent update checks:** The 24-hour auto-check cache now includes the full running EXE path and its installed version. Checking a new or older copy is not suppressed just because a different copy was checked recently.
+- **Two windows from the same EXE:** Before downloading an update, the app checks for other windows running from the same executable file. If found, it asks you to close the other windows and retry instead of failing after the original closes.
+- **During installation:** The staged updater checks for other running instances again and uses a destination-specific named mutex. Two separate update operations cannot replace the same EXE concurrently. It does not terminate other processes.
+- **Different EXE files:** Version-labelled files such as `TCPViewerPro_v6.2.0.exe`, browser duplicates like `TCPViewerPro (1).exe`, and copies in different directories are independent. Updating one does not update the others.
+- Added Windows regression tests for file identity, per-target mutex naming, and detection of running copies.
+
+**Test on Windows:** Make two files in separate folders (for example, v6.2.0 and v6.4.2). Open the older EXE and update it to v6.4.3. Reopen the other file; its version should remain unchanged. Then launch the same EXE twice, attempt its next update, and verify you receive a clear request to close the extra instance rather than an unexplained installation failure. The app remains unsigned; do not turn off Windows protections to run it.
 
 ## Security improvements in v6.4.2
 
