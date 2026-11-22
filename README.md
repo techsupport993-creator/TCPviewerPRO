@@ -2,7 +2,7 @@
 
 A Windows network connection monitor and process-investigation desktop app built using C# WinForms.
 
-**Current source version: 6.5.0** (working Network Diagnostics page)
+**Current source version: 6.6.0** (Simple and Advanced Network Diagnostics)
 
 ## Download TCP Viewer Pro (Windows 10/11, x64)
 
@@ -38,6 +38,32 @@ When multiple copies of TCP Viewer Pro are present, **each EXE is its own instal
 - Added Windows regression tests for file identity, per-target mutex naming, and detection of running copies.
 
 **Test on Windows:** Make two files in separate folders (for example, v6.2.0 and v6.4.2). Open the older EXE and update it to v6.4.3. Reopen the other file; its version should remain unchanged. Then launch the same EXE twice, attempt its next update, and verify you receive a clear request to close the extra instance rather than an unexplained installation failure. The app remains unsigned; do not turn off Windows protections to run it.
+
+## New in v6.6.0 — Simple / Advanced diagnostics
+
+The Network Diagnostics page now opens in **SIMPLE** mode, with an **ADVANCED** button at the top right. Both modes share test results; changing modes does not rerun any network probes.
+
+**Simple mode (default)**
+- Click **CHECK CONNECTION** to explicitly run a small local test: a reported gateway (if present), three ICMP pings of Cloudflare's public IP `1.1.1.1`, and a DNS lookup for `example.com`.
+- See three plain-English status cards (Local router, Internet test, Website names) with green checkmarks for full replies and yellow cautions for failures or missing information.
+- An overall summary describes what passed and what may need attention. A failed ICMP ping **does not prove the internet or device is offline**—firewalls can block pings. This is **not a speed test or malware scanner**.
+- **CANCEL**, **COPY REPORT**, and **SAVE REPORT** remain available. Reports stay local unless manually shared.
+
+**Advanced mode**
+- Keeps the individual Ping, DNS, Gateway, Refresh Adapters, and Run All controls, editable host fields, raw console-style output, and full adapter table.
+- Shows detailed IPv4/IPv6 addresses, gateways, configured DNS servers, MAC addresses and reported link speeds. Advanced tests remain opt-in.
+
+**Report cleanup**
+- Initial on-screen instructions are no longer exported as if they were results.
+- Adapter inventory appears **only once** in a saved report, after results have been collected.
+
+**Windows test checklist**
+1. Start v6.6.0, open **NETWORK DIAGNOSTICS**, and verify **SIMPLE** is selected automatically.
+2. Click **CHECK CONNECTION**. Check that three cards and overall summary change from *Not checked* to meaningful results.
+3. Click **ADVANCED**, confirm individual tests and adapter table are still present, then switch back and verify the summary is preserved.
+4. Test **CANCEL** during a check. Export a report and verify startup instructions and duplicate adapter lists are absent.
+5. Change between Cyber Blue and Matrix Green themes. Verify contrast and readable statuses in both modes.
+6. From v6.5.0, update through **SETTINGS → APPLICATION UPDATES** and confirm the new view loads.
 
 ## New in v6.5.0 — Network Diagnostics
 

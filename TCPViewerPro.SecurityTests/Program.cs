@@ -175,4 +175,46 @@ Assert(NetworkDiagnosticsService.FormatAdapterReport(new[] { wifiGateway })
        NetworkDiagnosticsService.FormatAdapterReport(new[] { wifiGateway })
         .Contains("Wi-Fi"), "adapter report includes reported gateway and adapter");
 
+
+var ok = NetworkHealthService.SummarizePing("Internet test", "1.1.1.1", 3,
+    new long[] { 10, 12, 11 });
+Assert(ok.Level == NetworkHealthService.HealthLevel.Good &&
+       ok.Headline.Contains("all 3") && ok.Details.Contains("11 ms"),
+    "plain-English internet ping success");
+Assert(ok.Explanation.Contains("does not measure download speed"),
+    "successful ping does not imply speed test");
+var partial = NetworkHealthService.SummarizePing("Local router", "192.168.0.1", 3,
+    new long[] { 4 });
+Assert(partial.Level == NetworkHealthService.HealthLevel.Attention &&
+       partial.Details.Contains("loss: 66%"),
+    "partial router ping reports packet loss without false healthy label");
+var silent = NetworkHealthService.SummarizePing("Internet test", "1.1.1.1", 2,
+    Array.Empty<long>());
+Assert(silent.Level == NetworkHealthService.HealthLevel.Attention &&
+       silent.Explanation.Contains("block ping"),
+    "silent test explicitly notes firewall blocking");
+var goodDns = NetworkHealthService.SummarizeDns(2);
+Assert(goodDns.Level == NetworkHealthService.HealthLevel.Good &&
+       goodDns.Headline.Contains("worked"),
+    "successful DNS summarized for beginners");
+Assert(NetworkHealthService.SummarizeDns(0).Level ==
+       NetworkHealthService.HealthLevel.Attention,
+    "no DNS addresses triggers attention");
+Assert(NetworkHealthService.SummarizeDns(0, "Name not known").Level ==
+       NetworkHealthService.HealthLevel.Attention,
+    "DNS error summarized without claiming malware");
+var health = new NetworkHealthService.HealthResult(
+    new[] { ok, partial, goodDns },
+    Array.Empty<NetworkDiagnosticsService.AdapterSnapshot>(),
+    new DateTime(2026, 11, 22));
+Assert(health.Headline.Contains("attention") &&
+       health.ToReport().Split("Local router", StringSplitOptions.None).Length == 2 &&
+       health.ToReport().Contains("Internet test"),
+    "beginner report preserves exact checks without raw adapter duplication");
+var greenHealth = new NetworkHealthService.HealthResult(
+    new[] { ok, goodDns }, Array.Empty<NetworkDiagnosticsService.AdapterSnapshot>(),
+    DateTime.Now);
+Assert(greenHealth.Headline.Contains("passed") &&
+       greenHealth.Explanation.Contains("not a full internet speed"),
+    "overall summary limits certainty to tests that actually ran");
 Console.WriteLine($"All {passed} security checks passed.");

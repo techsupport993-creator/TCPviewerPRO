@@ -14,15 +14,16 @@ public sealed partial class MainForm
     private readonly RichTextBox diagnosticOutput = new();
     private readonly DataGridView diagnosticAdaptersGrid = new();
     private readonly Label diagnosticStatus = new();
+    private readonly StringBuilder diagnosticHistory = new();
     private readonly List<Button> diagnosticRunButtons = new();
     private Button? diagnosticCancelButton;
     private CancellationTokenSource? diagnosticCancellation;
     private IReadOnlyList<NetworkDiagnosticsService.AdapterSnapshot> diagnosticAdapters =
         Array.Empty<NetworkDiagnosticsService.AdapterSnapshot>();
 
-    private TabPage BuildNetworkDiagnosticsPage()
+    private Control BuildAdvancedNetworkDiagnosticsView()
     {
-        var page = Page("NETWORK DIAGNOSTICS");
+        var page = new Panel { Dock = DockStyle.Fill, BackColor = bg };
         var content = new TableLayoutPanel
         {
             Dock = DockStyle.Fill, BackColor = bg,
@@ -39,7 +40,7 @@ public sealed partial class MainForm
         var header = new Panel { Dock = DockStyle.Fill, BackColor = panel };
         header.Controls.Add(new Label
         {
-            Text = "NETWORK DIAGNOSTICS", Font = new Font("Segoe UI Semibold", 18F),
+            Text = "ADVANCED NETWORK TESTS", Font = new Font("Segoe UI Semibold", 18F),
             ForeColor = cyan, AutoSize = true, Location = new Point(13, 6)
         });
         header.Controls.Add(new Label
@@ -178,9 +179,7 @@ public sealed partial class MainForm
         diagnosticOutput.WordWrap = false;
         diagnosticOutput.DetectUrls = false;
         diagnosticOutput.ScrollBars = RichTextBoxScrollBars.Both;
-        diagnosticOutput.Text = "Run a test above to see results.\n" +
-            "ICMP ping timeouts can occur even when a host is online.\n" +
-            "Results stay on this PC unless you choose COPY or SAVE REPORT.";
+        diagnosticOutput.Text = "Detailed test results appear here. Run a test above to begin.";
         outputPanel.Controls.Add(diagnosticOutput);
         outputPanel.Controls.Add(outputHeader);
         content.Controls.Add(outputPanel, 0, 3);
@@ -235,8 +234,7 @@ public sealed partial class MainForm
     {
         var output = new StringBuilder();
         var adapters = await LoadNetworkAdaptersAsync(cancellation);
-        output.AppendLine(NetworkDiagnosticsService.FormatAdapterReport(adapters));
-        output.AppendLine();
+        // Adapter details appear once in the saved report, after the test log.
         output.AppendLine(await TryDiagnosticSectionAsync("GATEWAY CHECK",
             () => NetworkDiagnosticsService.PingGatewayAsync(adapters, cancellation), cancellation));
         output.AppendLine();
@@ -266,6 +264,8 @@ public sealed partial class MainForm
         diagnosticCancellation = cancellation;
         foreach (var button in diagnosticRunButtons) button.Enabled = false;
         if (diagnosticCancelButton is not null) diagnosticCancelButton.Enabled = true;
+        if (simpleRunButton is not null) simpleRunButton.Enabled = false;
+        if (simpleCancelButton is not null) simpleCancelButton.Enabled = true;
         diagnosticStatus.Text = $"Running {title}...";
         try
         {
@@ -297,6 +297,8 @@ public sealed partial class MainForm
             {
                 foreach (var button in diagnosticRunButtons) button.Enabled = true;
                 if (diagnosticCancelButton is not null) diagnosticCancelButton.Enabled = false;
+                if (simpleRunButton is not null) simpleRunButton.Enabled = true;
+                if (simpleCancelButton is not null) simpleCancelButton.Enabled = false;
             }
             diagnosticCancellation = null;
         }
@@ -305,8 +307,10 @@ public sealed partial class MainForm
     private void AppendDiagnosticResult(string result)
     {
         // Bound UI log memory even after many repeated diagnostic runs.
-        if (diagnosticOutput.TextLength > 65_000) diagnosticOutput.Clear();
-        diagnosticOutput.AppendText("\n" + new string('─', 56) + "\n" + result + "\n");
+        if (diagnosticHistory.Length > 65_000) diagnosticHistory.Clear();
+        diagnosticHistory.AppendLine(new string('─', 56));
+        diagnosticHistory.AppendLine(result);
+        diagnosticOutput.Text = diagnosticHistory.ToString();
         diagnosticOutput.SelectionStart = diagnosticOutput.TextLength;
         diagnosticOutput.ScrollToCaret();
     }
@@ -317,8 +321,11 @@ public sealed partial class MainForm
                $"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
                $"Application version: {typeof(MainForm).Assembly.GetName().Version}\n" +
                "Local report. May contain private IP addresses, MAC addresses and DNS servers.\n\n" +
-               diagnosticOutput.Text + "\n\n" +
-               NetworkDiagnosticsService.FormatAdapterReport(diagnosticAdapters) + "\n";
+               (diagnosticHistory.Length > 0
+                   ? diagnosticHistory.ToString() : "No tests have been run.\n") +
+               (diagnosticAdapters.Count > 0
+                   ? "\n" + NetworkDiagnosticsService.FormatAdapterReport(diagnosticAdapters) + "\n"
+                   : "");
     }
 
     private void SaveNetworkDiagnosticsReport()
