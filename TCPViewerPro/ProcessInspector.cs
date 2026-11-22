@@ -162,6 +162,23 @@ public sealed partial class MainForm
         var controls = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
         var copy = Button("COPY REPORT", green, bg); copy.Width = 135;
         copy.Click += (_, _) => { if (report.TextLength > 0) Clipboard.SetText(report.Text); };
+        var copyEndpoints = Button("COPY ENDPOINTS", cyan, bg);
+        copyEndpoints.Width = 145;
+        copyEndpoints.Click += (_, _) =>
+        {
+            if (endpoints.Count == 0)
+            {
+                MessageBox.Show(dialog, "No network endpoints were captured for this process.");
+                return;
+            }
+            var lines = new StringBuilder();
+            lines.AppendLine("PROTOCOL\tLOCAL\tREMOTE\tSTATE");
+            foreach (var endpoint in endpoints)
+                lines.AppendLine($"{endpoint.Protocol}\t{endpoint.LocalAddress}:{endpoint.LocalPort}\t" +
+                                 $"{endpoint.RemoteAddress}:{endpoint.RemotePort}\t{endpoint.State}");
+            try { Clipboard.SetText(lines.ToString()); }
+            catch (Exception ex) { MessageBox.Show(dialog, "Could not copy endpoints: " + ex.Message); }
+        };
         var open = Button("OPEN EXE FOLDER", cyan, bg); open.Width = 165;
         open.Click += (_, _) =>
         {
@@ -175,7 +192,7 @@ public sealed partial class MainForm
         };
         var close = Button("CLOSE", Color.FromArgb(255, 190, 90), bg);
         close.Click += (_, _) => dialog.Close();
-        controls.Controls.AddRange(new Control[] { copy, open, close });
+        controls.Controls.AddRange(new Control[] { copy, copyEndpoints, open, close });
         layout.Controls.Add(controls, 0, 3);
         dialog.Controls.Add(layout);
         openInspectorDialogs.Add(dialog);
