@@ -2,7 +2,7 @@
 
 A Windows network connection monitor and process-investigation desktop app built using C# WinForms.
 
-**Current source version: 6.4.0** (small usability release for testing updates from v6.3.0)
+**Current source version: 6.4.1** (fixes automatic updates from version-labelled EXE filenames)
 
 ## Download TCP Viewer Pro (Windows 10/11, x64)
 
@@ -46,7 +46,7 @@ To publish a future version, increment `<Version>` and `<FileVersion>` in the pr
 ## Filename and automatic updater compatibility
 
 - Public download filenames include the full version, for example `TCPViewerPro_v6.2.0.exe`, `TCPViewerPro_v6.3.0.exe` and `TCPViewerPro_v6.4.0.exe`.
-- For **in-app automatic updates**, run the executable named **`TCPViewerPro.exe`** in a writable folder. The current updater (including v6.3.0 and v6.4.0) refuses to replace other names. Version-labelled downloads are for identifying, keeping and manually launching different versions; a filename alone does not establish the version of an installed program.
+- **Updater fix in v6.4.1:** When an older version checks GitHub for updates, it downloads the newest patched installer. The installer now supports `TCPViewerPro.exe`, version-labelled names such as `TCPViewerPro_v6.2.0.exe`, and Windows numbered duplicates such as `TCPViewerPro (1).exe` or `TCPViewerPro_v6.2.0 (1).exe`. It replaces the originally launched file **without renaming it**, if the folder is writable. Unrelated EXE names remain blocked.
 - To keep multiple auto-updatable installations, create separate folders named `v6.2.0`, `v6.3.0` and so on, each containing a file named `TCPViewerPro.exe`. Do not overwrite your existing versions.
 
 ## Automatic updates
@@ -81,6 +81,22 @@ To test the complete update flow on a Windows computer, keep the existing v6.2.0
 6. Test **COPY APP INFO** and **COPY ENDPOINTS**. If any step fails, keep your backup and report the exact message. Do not disable antivirus or Windows security to force the update.
 
 This test is not complete until it succeeds on a real Windows PC; a successful GitHub build only verifies compilation and packaging.
+
+## v6.4.1 — Fix for automatic updates from renamed downloads
+
+Versions 6.2.0–6.4.0 could check for, download and verify a newer release, but updating failed when the original EXE was named `TCPViewerPro_v6.2.0.exe` or `TCPViewerPro (1).exe`. The downloaded update's bootstrapper had a hard-coded destination name check.
+
+**v6.4.1 removes that naming limitation** for recognized TCP Viewer Pro versioned and numbered EXE names. The staged updater still validates its SHA-256 digest, requires the target to exist outside its staging directory, waits for the running process to exit, and preserves a `.previous` rollback copy. The original filename remains unchanged, even if it says an earlier version.
+
+### Test from an older version
+
+1. Back up your original v6.2.0/v6.3.0/v6.4.0 EXE and launch it from a writable folder, not Program Files.
+2. Keep its current name (for example `TCPViewerPro_v6.2.0.exe`); you should **not** need to rename it.
+3. Open **Settings → Application Updates → CHECK NOW** and choose v6.4.1 after verifying the source is your trusted GitHub release. The updater asks for approval and may warn that the EXE is unsigned.
+4. If installation succeeds, the application restarts. **About** and the title bar should show **6.4.1**, even if the file on disk still has an older version in its name.
+5. Confirm your settings are preserved and the original folder contains a `.previous` backup.
+
+A successful GitHub Actions build validates compilation but does not prove the replacement-and-restart sequence works on your PC; this test must be done on Windows.
 
 ## Important security and testing notes
 
