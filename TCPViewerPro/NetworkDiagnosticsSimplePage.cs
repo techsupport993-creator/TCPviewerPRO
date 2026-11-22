@@ -114,11 +114,13 @@ public sealed partial class MainForm
             Font = new Font("Segoe UI Semibold", 14F), AutoSize = true,
             Location = new Point(14, 8)
         });
-        actionPanel.Controls.Add(new Label
+        var actionHint = new Label
         {
-            Text = "One click checks your router, an internet test server and website name lookup.",
-            ForeColor = muted, AutoSize = true, Location = new Point(15, 42)
-        });
+            Text = "One click checks your router, a test server and website name lookup.",
+            ForeColor = muted, AutoSize = false, AutoEllipsis = true,
+            Location = new Point(15, 42), Size = new Size(400, 26)
+        };
+        actionPanel.Controls.Add(actionHint);
         simpleRunButton = Button("CHECK CONNECTION", green, bg);
         simpleRunButton.Width = 175;
         simpleRunButton.Height = 39;
@@ -137,36 +139,36 @@ public sealed partial class MainForm
             simpleCancelButton.Left = actionPanel.ClientSize.Width - simpleCancelButton.Width - 11;
             simpleRunButton.Left = simpleCancelButton.Left - simpleRunButton.Width - 7;
             simpleRunButton.Top = simpleCancelButton.Top = 18;
+            actionHint.Width = Math.Max(120, simpleRunButton.Left - 26);
         };
         body.Controls.Add(actionPanel, 0, 0);
 
-        var overall = new Panel { Dock = DockStyle.Fill, BackColor = panel, Padding = new Padding(15, 9, 12, 8) };
-        var eyebrow = new Label
+        var overall = new Panel { Dock = DockStyle.Fill, BackColor = panel };
+        overall.Controls.Add(new Label
         {
-            Text = "CONNECTION SUMMARY", AutoSize = true, ForeColor = muted,
-            Font = new Font("Consolas", 9F, FontStyle.Bold), Dock = DockStyle.Top, Height = 22
-        };
-        overall.Controls.Add(eyebrow);
+            Text = "CONNECTION SUMMARY", ForeColor = muted,
+            Font = new Font("Consolas", 9F, FontStyle.Bold),
+            Location = new Point(14, 9), Size = new Size(340, 23)
+        });
         simpleHeadline.Text = "Not checked yet";
         simpleHeadline.ForeColor = cyan;
         simpleHeadline.Font = new Font("Segoe UI Semibold", 16F);
-        simpleHeadline.Dock = DockStyle.Top;
-        simpleHeadline.Height = 36;
+        simpleHeadline.Location = new Point(14, 32);
+        simpleHeadline.Size = new Size(750, 36);
         simpleHeadline.AutoEllipsis = true;
         simpleExplanation.Text = "Click CHECK CONNECTION to see whether these basic tests respond.";
         simpleExplanation.ForeColor = Color.Gainsboro;
         simpleExplanation.Font = new Font("Segoe UI", 10F);
-        simpleExplanation.Dock = DockStyle.Fill;
-        overall.Controls.Add(simpleExplanation);
+        simpleExplanation.Location = new Point(16, 72);
+        simpleExplanation.Size = new Size(750, 33);
+        simpleExplanation.AutoEllipsis = true;
         overall.Controls.Add(simpleHeadline);
-        overall.Controls.SetChildIndex(eyebrow, 0);
-        overall.Controls.SetChildIndex(simpleHeadline, 1);
-        overall.Controls.SetChildIndex(simpleExplanation, 2);
-        // Ensure stacking uses a predictable visual order, independent of tab focus.
-        simpleExplanation.BringToFront();
-        simpleHeadline.BringToFront();
-        eyebrow.BringToFront();
-        // Dock order is bottom-to-top: explanatory text fills the rest of the panel.
+        overall.Controls.Add(simpleExplanation);
+        overall.Resize += (_, _) =>
+        {
+            simpleHeadline.Width = Math.Max(160, overall.ClientSize.Width - 30);
+            simpleExplanation.Width = Math.Max(160, overall.ClientSize.Width - 32);
+        };
         body.Controls.Add(overall, 0, 1);
 
         var cards = new TableLayoutPanel
