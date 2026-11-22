@@ -12,7 +12,7 @@ public sealed partial class MainForm
     private sealed record ProcessMetadata(
         string Name, string Path, string Company, string Category,
         string Signer, string SignatureStatus, string SignatureDetail,
-        long Length, DateTime WriteTimeUtc);
+        long Length, DateTime WriteTimeUtc, DateTime StartTimeUtc);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr OpenProcess(uint access, bool inheritHandle, int processId);
@@ -45,12 +45,14 @@ public sealed partial class MainForm
     {
         string name = pid switch { 0 => "System Idle Process", 4 => "System", _ => "(unavailable)" };
         string path = "";
+        DateTime processStartUtc = DateTime.MinValue;
         if (pid > 4)
         {
             try
             {
                 using var proc = Process.GetProcessById(pid);
                 name = proc.ProcessName;
+                try { processStartUtc = proc.StartTime.ToUniversalTime(); } catch { }
                 try { path = proc.MainModule?.FileName ?? ""; } catch { }
             }
             catch { }
@@ -58,7 +60,8 @@ public sealed partial class MainForm
         }
         if (path.Length == 0)
             return new ProcessMetadata(name, "", "Unknown", "Unavailable", "Unavailable",
-                "Executable path not accessible", "Process may be protected or exited", 0, DateTime.MinValue);
+                "Executable path not accessible", "Process may be protected or exited", 0,
+                DateTime.MinValue, processStartUtc);
 
         long length = 0;
         DateTime modified = DateTime.MinValue;
@@ -73,7 +76,7 @@ public sealed partial class MainForm
         {
             if (fileMetadata.TryGetValue(path, out var cached) &&
                 cached.Length == length && cached.WriteTimeUtc == modified)
-                return cached with { Name = name };
+                return cached with { Name = name, StartTimeUtc = processStartUtc };
         }
 
         string company = "Unknown";
@@ -85,7 +88,8 @@ public sealed partial class MainForm
         catch { }
         var signature = SignatureVerifier.Check(path);
         var result = new ProcessMetadata(name, path, company, signature.Category,
-            signature.Signer, signature.Status, signature.TechnicalResult, length, modified);
+            signature.Signer, signature.Status, signature.TechnicalResult,
+            length, modified, processStartUtc);
         lock (fileMetadataLock)
         {
             if (fileMetadata.Count > 2500) fileMetadata.Clear();
