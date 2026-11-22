@@ -32,7 +32,7 @@ jobs:
               raise RuntimeError("Archive differs from inspected TCP Viewer Pro v6.2 upload")
           with zipfile.ZipFile(archive) as z:
               members = [m for m in z.infolist() if not m.is_dir()]
-              if len(members) != 22:
+              if len(members) != 25:
                   raise RuntimeError(f"Unexpected member count: {len(members)}")
               for m in members:
                   target = Path(m.filename)
