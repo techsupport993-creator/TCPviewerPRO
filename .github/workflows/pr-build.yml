@@ -11,9 +11,9 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up .NET 8
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
       - name: Security regression tests
@@ -32,7 +32,7 @@ jobs:
             throw 'EXE is too small or has an invalid PE signature.'
           }
           (Get-FileHash $exe -Algorithm SHA256).Hash | Write-Host
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: tcpviewerpro-pr-windows-x64
           path: TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe
