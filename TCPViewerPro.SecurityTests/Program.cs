@@ -79,4 +79,39 @@ Assert(SecurityGuards.ProtectCsvFormula("=2+2") == "'=2+2", "CSV formula neutral
 Assert(SecurityGuards.ProtectCsvFormula("\t@SUM(1,2)") == "'\t@SUM(1,2)", "CSV tab-prefixed formula neutralized");
 Assert(SecurityGuards.ProtectCsvFormula("Safe process") == "Safe process", "regular CSV value unchanged");
 
+
+// Multiple-copy updater regressions: updates must be scoped to one exact file.
+string baseDir = Path.Combine(Path.GetTempPath(), "TCPViewerPro-UpdateTests");
+string firstCopy = Path.Combine(baseDir, "copy-a", "TCPViewerPro.exe");
+string equivalent = Path.Combine(baseDir, "copy-a", ".", "TCPViewerPro.exe");
+string secondCopy = Path.Combine(baseDir, "copy-b", "TCPViewerPro.exe");
+string numberedCopy = Path.Combine(baseDir, "copy-a", "TCPViewerPro (1).exe");
+Assert(UpdateInstanceGuard.SameExePath(firstCopy, equivalent),
+    "same executable path with dot component detected");
+Assert(!UpdateInstanceGuard.SameExePath(firstCopy, secondCopy),
+    "identically named EXEs in separate folders stay independent");
+Assert(!UpdateInstanceGuard.SameExePath(firstCopy, numberedCopy),
+    "numbered downloads are separate files");
+Assert(!UpdateInstanceGuard.SameExePath(firstCopy, ""),
+    "missing stored executable path triggers fresh check");
+Assert(UpdateInstanceGuard.MutexNameForExecutable(firstCopy) ==
+       UpdateInstanceGuard.MutexNameForExecutable(equivalent),
+    "equivalent paths share an update lock");
+Assert(UpdateInstanceGuard.MutexNameForExecutable(firstCopy) !=
+       UpdateInstanceGuard.MutexNameForExecutable(secondCopy),
+    "different executable paths receive distinct update locks");
+Assert(UpdateInstanceGuard.BlockingMessage(
+    new[] { new UpdateInstanceGuard.RunningCopy(1234, false) }, "TCPViewerPro.exe")
+        .Contains("1234"), "lock warning identifies blocking PID");
+if (OperatingSystem.IsWindows() && Environment.ProcessPath is { } runningExe)
+{
+    var withSelf = UpdateInstanceGuard.FindOtherRunningCopies(runningExe, -1);
+    Assert(withSelf.Any(x => x.Pid == Environment.ProcessId),
+        "find active instance using the current EXE path");
+    var withoutSelf = UpdateInstanceGuard.FindOtherRunningCopies(
+        runningExe, Environment.ProcessId);
+    Assert(!withoutSelf.Any(x => x.Pid == Environment.ProcessId),
+        "exclude the updating process from running-copy detection");
+}
+
 Console.WriteLine($"All {passed} security checks passed.");
