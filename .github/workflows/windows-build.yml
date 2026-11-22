@@ -1,12 +1,17 @@
-name: Windows build
+name: Windows build and public release
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: tcpviewerpro-windows-release
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -17,18 +22,69 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Check project version and existing release
+        id: release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [xml]$project = Get-Content 'TCPViewerPro/TCPViewerPro.csproj'
+          $version = [string]$project.Project.PropertyGroup.Version
+          if ($version -notmatch '^[0-9]+[.][0-9]+[.][0-9]+$') {
+            throw 'Project Version must be three numeric components, e.g. 6.3.0'
+          }
+          $tag = "v$version"
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne $tag) {
+            throw "Git tag $env:GITHUB_REF_NAME does not match project version $tag"
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            "exists=true" >> $env:GITHUB_OUTPUT
+            Write-Host "Release $tag already exists; not replacing published binaries."
+          } else {
+            "exists=false" >> $env:GITHUB_OUTPUT
+            Write-Host "Release $tag does not exist; will publish it after a successful build."
+          }
       - name: Restore
         run: dotnet restore TCPViewerPro/TCPViewerPro.csproj --configfile NuGet.Config -r win-x64
-      - name: Publish
+      - name: Publish Windows x64 standalone EXE
         run: dotnet publish TCPViewerPro/TCPViewerPro.csproj -c Release -r win-x64 --self-contained true --no-restore /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true
-      - name: SHA-256
+      - name: Generate SHA-256 checksum
         shell: pwsh
         run: |
-          $p = "TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe"
-          ((Get-FileHash $p -Algorithm SHA256).Hash.ToLowerInvariant() + "  TCPViewerPro.exe") | Set-Content -Encoding ascii TCPViewerPro.exe.sha256
-      - uses: actions/upload-artifact@v4
+          $exe = 'TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe'
+          if (-not (Test-Path $exe)) { throw 'Published TCPViewerPro.exe was not found.' }
+          ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() + '  TCPViewerPro.exe') |
+            Set-Content -Encoding ascii TCPViewerPro.exe.sha256
+      - name: Upload Windows build artifact
+        uses: actions/upload-artifact@v4
         with:
           name: tcpviewerpro-windows-x64
           path: |
             TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe
             TCPViewerPro.exe.sha256
+          if-no-files-found: error
+      - name: Publish public GitHub Release
+        if: steps.release.outputs.exists == 'false'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          $exe = 'TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe'
+          $checksum = 'TCPViewerPro.exe.sha256'
+          $notes = @"
+          TCP Viewer Pro v$env:VERSION — Windows 10/11 x64.
+          
+          Includes the Matrix Green theme, cat application icon, TCP/UDP monitoring, process investigation and opt-in update checks.
+          
+          Download TCPViewerPro.exe below. This is a self-contained .NET 8 executable; no Python or separate .NET runtime install is required.
+          Check TCPViewerPro.exe.sha256 to verify the download.
+          
+          Note: The build passed Windows CI but has not been independently runtime-tested or code-signed. Windows may display an unknown-publisher warning.
+          "@
+          gh release create $env:RELEASE_TAG $exe $checksum --repo $env:GITHUB_REPOSITORY --title "TCP Viewer Pro v$env:VERSION" --notes $notes --target $env:GITHUB_SHA --latest
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed.' }
