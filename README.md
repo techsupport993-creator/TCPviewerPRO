@@ -2,7 +2,7 @@
 
 A Windows network connection monitor and process-investigation desktop app built using C# WinForms.
 
-**Current source version: 6.4.3** (corrects update behavior when multiple copies exist)
+**Current source version: 6.5.0** (working Network Diagnostics page)
 
 ## Download TCP Viewer Pro (Windows 10/11, x64)
 
@@ -22,6 +22,7 @@ Extracting ZIP files or installing Python or the .NET runtime is **not required*
 - Confirmed IPv4 TCP disconnect and Windows Firewall outbound-IP blocking
 - Optional GitHub Releases update checks with SHA-256 verification and explicit approval
 - Theme-aware Process Inspector connections table, including recoloring when the theme changes
+- Network Diagnostics: ping latency and packet loss, DNS lookup, gateway reachability, adapter IP/MAC/speed and DNS configuration, copy/save local reports
 - About page with the running version, release downloads, source code, and privacy information
 
 Some sidebar modules are planned placeholders, **not yet implemented**.
@@ -37,6 +38,33 @@ When multiple copies of TCP Viewer Pro are present, **each EXE is its own instal
 - Added Windows regression tests for file identity, per-target mutex naming, and detection of running copies.
 
 **Test on Windows:** Make two files in separate folders (for example, v6.2.0 and v6.4.2). Open the older EXE and update it to v6.4.3. Reopen the other file; its version should remain unchanged. Then launch the same EXE twice, attempt its next update, and verify you receive a clear request to close the extra instance rather than an unexplained installation failure. The app remains unsigned; do not turn off Windows protections to run it.
+
+## New in v6.5.0 — Network Diagnostics
+
+Open **NETWORK DIAGNOSTICS** in the left sidebar (under **DIAGNOSTIC TOOLS**, no longer a planned placeholder).
+
+- **PING TEST:** enter a hostname or IP address and send up to three ICMP echo requests. Displays round-trip latency, packet loss, and status. ICMP timeouts do not necessarily mean a system is unreachable.
+- **DNS LOOKUP:** resolve a hostname through the computer's configured Windows DNS resolver, displaying IPv4/IPv6 addresses.
+- **GATEWAY TEST:** finds a gateway advertised by an active network adapter (preferring a physical wired/wireless adapter) and tries two pings. The displayed gateway is the adapter-reported gateway, not a proof of which route Windows would select.
+- **REFRESH ADAPTERS:** show online/offline adapters, types, IPv4/IPv6 addresses, gateways, DNS servers, MAC addresses and reported link speed. Reported adapter speed is **not** measured Internet bandwidth.
+- **RUN ALL:** execute the above tests on demand, with failures displayed separately so one failed test does not prevent other diagnostics.
+- **CANCEL:** cancel an in-progress diagnostic; operations also time out automatically.
+- **COPY REPORT / SAVE REPORT:** explicitly copy or export a human-readable `.txt` report for IT troubleshooting. Reports may include private IP addresses, MAC addresses and DNS servers; review before sharing.
+
+No administrator privileges, external API keys, Python, system shell commands, port scans or background data uploads are required. **Ping and DNS queries only occur after the user clicks a test button.** Internet connectivity and DNS resolver configuration determine which test results are available.
+
+### Suggested Windows test
+
+1. Start `TCPViewerPro.exe` and open **NETWORK DIAGNOSTICS**.
+2. Select **REFRESH ADAPTERS**. Confirm your Ethernet/Wi-Fi adapter, IPv4 address, gateway and DNS servers appear.
+3. Keep `1.1.1.1` in **PING HOST / IP**, then click **PING TEST**. Ping may time out on networks that block ICMP.
+4. Keep `example.com` in **DNS HOST**, click **DNS LOOKUP**, and verify that addresses are returned.
+5. Click **GATEWAY TEST** and **RUN ALL**. Verify the window remains responsive and a missing gateway shows a clear message.
+6. Click **COPY REPORT** and **SAVE REPORT**. Check the resulting text includes diagnostics and the local adapter inventory.
+7. Change between Matrix Green and Cyber Blue themes. Check buttons, report output and adapter table remain legible.
+8. Verify automatic updating from v6.4.3 to v6.5.0 still works.
+
+The GitHub Actions build and regression checks validate code, but individual Windows adapter, DNS and gateway behavior requires testing on a real computer.
 
 ## Security improvements in v6.4.2
 
