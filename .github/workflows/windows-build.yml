@@ -17,9 +17,9 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up .NET 8
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
       - name: Check project version and existing release
@@ -48,10 +48,26 @@ jobs:
             Write-Host "Release $tag does not exist; will publish it after a successful build."
           }
           $global:LASTEXITCODE = 0
+      - name: Security regression tests
+        run: dotnet run --project TCPViewerPro.SecurityTests/TCPViewerPro.SecurityTests.csproj --configuration Release
       - name: Restore
         run: dotnet restore TCPViewerPro/TCPViewerPro.csproj --configfile NuGet.Config -r win-x64
       - name: Publish Windows x64 standalone EXE
         run: dotnet publish TCPViewerPro/TCPViewerPro.csproj -c Release -r win-x64 --self-contained true --no-restore /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true
+      - name: Inspect Authenticode signing status
+        shell: pwsh
+        env:
+          REQUIRE_SIGNED_RELEASE: ${{ vars.REQUIRE_SIGNED_RELEASE }}
+        run: |
+          $exe = 'TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe'
+          $signature = Get-AuthenticodeSignature -FilePath $exe
+          Write-Host "Authenticode status: $($signature.Status)"
+          if ($env:REQUIRE_SIGNED_RELEASE -eq 'true' -and $signature.Status -ne 'Valid') {
+            throw 'Signing is mandatory, but the generated executable is not verified and signed.'
+          }
+          if ($signature.Status -ne 'Valid') {
+            Write-Warning 'Unsigned release: Windows may block it. Configure trusted code signing before setting REQUIRE_SIGNED_RELEASE=true.'
+          }
       - name: Generate SHA-256 checksum
         shell: pwsh
         run: |
@@ -70,7 +86,7 @@ jobs:
           $hash = (Get-FileHash $name -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $name" | Set-Content -Encoding ascii "$name.sha256"
       - name: Upload Windows build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: tcpviewerpro-windows-x64
           path: |

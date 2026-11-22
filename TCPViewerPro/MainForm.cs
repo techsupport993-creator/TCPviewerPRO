@@ -574,7 +574,8 @@ public sealed partial class MainForm : Form
             RemoteAddress = remote.Address.ToString(), RemotePort = remote.Port, State = state,
             Pid = pid, Process = meta.Name, Path = meta.Path, Company = meta.Company,
             PublisherCategory = meta.Category, Signer = meta.Signer,
-            SignatureStatus = meta.SignatureStatus, SignatureDetail = meta.SignatureDetail
+            SignatureStatus = meta.SignatureStatus, SignatureDetail = meta.SignatureDetail,
+            ProcessStartedUtc = meta.StartTimeUtc
         };
     }
 
@@ -659,6 +660,18 @@ public sealed partial class MainForm : Form
             "Confirm TCP disconnect", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
         try
         {
+            // A selected row is only a snapshot. Refuse to disconnect if the
+            // endpoint is gone or now belongs to a different process.
+            bool stillOwned = IpHelperTables.GetTcp4().Any(c =>
+                c.Pid == r.Pid && c.LocalAddress.Equals(local) && c.LocalPort == r.LocalPort &&
+                c.RemoteAddress.Equals(remote) && c.RemotePort == r.RemotePort &&
+                IpHelperTables.TcpStateName(c.State) == "ESTABLISHED");
+            if (!stillOwned)
+            {
+                MessageBox.Show(this, "This connection changed since the last refresh. Refresh and select it again.",
+                    "Connection changed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             uint status = IpHelperTables.CloseTcp4(local, r.LocalPort, remote, r.RemotePort);
             if (status == 0) footer.Text = "TCP disconnect requested.";
             else MessageBox.Show($"Windows could not close this connection. IP Helper error: {status}\nTry running TCP Viewer Pro as Administrator.");
@@ -666,27 +679,130 @@ public sealed partial class MainForm : Form
         catch (Exception ex) { MessageBox.Show("Could not close TCP connection:\n" + ex.Message); }
     }
 
-    void BlockSelectedIp()
+    private bool firewallRulePending;
+
+    async void BlockSelectedIp()
     {
-        var r=Selected();if(r==null){MessageBox.Show("Select a connection first.");return;}
-        if(!IPAddress.TryParse(r.RemoteAddress,out var ip)||IPAddress.IsLoopback(ip)||ip.Equals(IPAddress.Any)||ip.Equals(IPAddress.IPv6Any)){MessageBox.Show("This endpoint does not have a blockable remote IP.");return;}
-        if(MessageBox.Show($"Create a Windows Defender Firewall outbound BLOCK rule for:\n{ip}\n\nThis may interrupt applications using this address. Administrator permission is required.","Confirm firewall change",MessageBoxButtons.YesNo,MessageBoxIcon.Warning)!=DialogResult.Yes)return;
+        if (firewallRulePending) return;
+        var r = Selected();
+        if (r is null) { MessageBox.Show(this, "Select a connection first."); return; }
+        if (!IPAddress.TryParse(r.RemoteAddress, out var ip) ||
+            !SecurityGuards.IsBlockableRemoteAddress(ip))
+        {
+            MessageBox.Show(this, "The selected connection has no blockable remote IP address.");
+            return;
+        }
+
+        string localWarning = SecurityGuards.IsPrivateOrSharedAddress(ip)
+            ? "\n\nWARNING: This is a local/private or shared-network address. " +
+              "Blocking it may disrupt printers, routers, servers or other devices on your network."
+            : "";
+        var confirmation = MessageBox.Show(this,
+            $"Create an OUTBOUND Windows Firewall block rule for {ip}?\n" +
+            $"Process shown: {r.Process} (PID {r.Pid})\n" +
+            "This blocks the IP for ALL applications, not only this process. " +
+            "It may interrupt other network connections." + localWarning +
+            "\n\nAdministrator approval will be required. Continue?",
+            "Confirm system-wide firewall change", MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+        if (confirmation != DialogResult.Yes) return;
+
+        string system = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        string netsh = Path.Combine(system, "netsh.exe");
+        if (!File.Exists(netsh))
+        {
+            MessageBox.Show(this, "The Windows system copy of netsh.exe could not be found.");
+            return;
+        }
+
+        firewallRulePending = true;
         try
         {
-            string name="TCPViewerPro_Block_"+ip.ToString().Replace(':','_').Replace('.','_');
-            var psi=new ProcessStartInfo("netsh.exe",$"advfirewall firewall add rule name=\"{name}\" dir=out action=block remoteip={ip}"){UseShellExecute=true,Verb="runas"};
-            using var p=Process.Start(psi);footer.Text="Firewall rule command launched; approve the Windows UAC prompt if shown.";
+            string name = "TCPViewerPro_Block_" + ip.ToString().Replace(':', '_').Replace('.', '_');
+            var psi = new ProcessStartInfo(netsh)
+            {
+                UseShellExecute = true, Verb = "runas", WorkingDirectory = system
+            };
+            foreach (string argument in new[]
+            {
+                "advfirewall", "firewall", "add", "rule", "name=" + name,
+                "dir=out", "action=block", "remoteip=" + ip
+            }) psi.ArgumentList.Add(argument);
+
+            using var process = Process.Start(psi) ??
+                throw new InvalidOperationException("Windows did not launch the firewall command.");
+            footer.Text = "Waiting for elevated Windows Firewall command...";
+            await process.WaitForExitAsync();
+            if (!IsDisposed)
+            {
+                if (process.ExitCode == 0)
+                    footer.Text = $"Windows Firewall reported rule created: {name}";
+                else
+                    MessageBox.Show(this, $"Windows Firewall reported error code {process.ExitCode}. " +
+                        "The block rule was not confirmed. Check Windows Defender Firewall.",
+                        "Firewall rule error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
-        catch(Exception ex){MessageBox.Show("Could not create firewall rule:\n"+ex.Message);}
+        catch (Exception ex)
+        {
+            if (!IsDisposed)
+                MessageBox.Show(this, "Could not create firewall rule: " + ex.Message,
+                    "Firewall rule error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        finally { firewallRulePending = false; }
     }
+
     void KillSelectedProcess()
     {
-        var r=Selected();if(r==null||r.Pid<=0){MessageBox.Show("No process ID is available for this connection.");return;}
-        if(r.Pid==Environment.ProcessId||r.Pid<=4){MessageBox.Show("Safety check: refusing to terminate this protected/system process.");return;}
-        if(MessageBox.Show($"Terminate {r.Process} (PID {r.Pid})?\nUnsaved work in that application may be lost.","Confirm process termination",MessageBoxButtons.YesNo,MessageBoxIcon.Warning)!=DialogResult.Yes)return;
-        try{Process.GetProcessById(r.Pid).Kill();footer.Text=$"Termination requested for PID {r.Pid}.";}
-        catch(Exception ex){MessageBox.Show("Could not terminate process:\n"+ex.Message);}
+        var r = Selected();
+        if (r is null || r.Pid <= 4 || r.Pid == Environment.ProcessId)
+        {
+            MessageBox.Show(this, "This process cannot be terminated safely.");
+            return;
+        }
+        try
+        {
+            using var process = Process.GetProcessById(r.Pid);
+            string currentPath = TryReadImagePath(r.Pid);
+            string currentName = process.ProcessName;
+            DateTime currentStartUtc = process.StartTime.ToUniversalTime();
+            if (!SecurityGuards.IsSameProcessSnapshot(r.Process, r.Path, r.ProcessStartedUtc,
+                    currentName, currentPath, currentStartUtc) ||
+                SecurityGuards.IsCriticalWindowsProcess(currentName, currentPath))
+            {
+                MessageBox.Show(this,
+                    "The selected process is protected, inaccessible or has changed since the snapshot. " +
+                    "Refresh and select a normal user application instead.",
+                    "Process termination refused", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (MessageBox.Show(this,
+                $"Terminate {currentName} (PID {r.Pid})?\n\nExecutable: {currentPath}" +
+                "\nUnsaved work in the application may be lost.",
+                "Confirm process termination", MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
+
+            process.Refresh();
+            string finalPath = TryReadImagePath(r.Pid);
+            if (process.HasExited ||
+                !SecurityGuards.IsSameProcessSnapshot(r.Process, r.Path, r.ProcessStartedUtc,
+                    process.ProcessName, finalPath, process.StartTime.ToUniversalTime()) ||
+                SecurityGuards.IsCriticalWindowsProcess(process.ProcessName, finalPath))
+            {
+                MessageBox.Show(this, "The process changed or exited before confirmation. No action taken.",
+                    "Process changed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            process.Kill();
+            footer.Text = $"Termination requested for {currentName} (PID {r.Pid}).";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "Could not safely terminate this process: " + ex.Message,
+                "Process termination", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
     }
+
     void ExportCsv()
     {
         using var d=new SaveFileDialog{Filter="CSV files|*.csv",FileName=$"TCPViewerPro_{DateTime.Now:yyyyMMdd_HHmmss}.csv"};
@@ -696,7 +812,7 @@ public sealed partial class MainForm : Form
         foreach(var r in rows)sb.AppendLine(string.Join(",",new[]{r.Protocol,r.Process,r.Pid.ToString(),r.PublisherCategory,r.Signer,r.Company,r.LocalAddress,r.LocalPort.ToString(),r.RemoteAddress,r.RemotePort.ToString(),r.State,r.Path}.Select(Csv)));
         File.WriteAllText(d.FileName,sb.ToString(),Encoding.UTF8);footer.Text="CSV exported: "+d.FileName;
     }
-    static string Csv(string s)=>"\""+s.Replace("\"","\"\"")+"\"";
+    static string Csv(string s) => "\"" + SecurityGuards.ProtectCsvFormula(s).Replace("\"", "\"\"") + "\"";
     void RenderHistory()
     {
         if(tabs.TabPages.Count<4||tabs.TabPages[3].Tag is not ListBox l)return;
@@ -734,6 +850,7 @@ public sealed partial class MainForm : Form
         public string Signer{get;set;}="Unknown";
         public string SignatureStatus{get;set;}="Not checked";
         public string SignatureDetail{get;set;}="";
+        public DateTime ProcessStartedUtc { get; set; } = DateTime.MinValue;
         public string Group{get;set;}="";
         public string Key=>$"{Protocol}|{Pid}|{LocalAddress}:{LocalPort}|{RemoteAddress}:{RemotePort}|{State}";
     }
