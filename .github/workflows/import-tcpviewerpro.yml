@@ -47,7 +47,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .gitignore NuGet.Config RELEASE_CHECKLIST.txt Build-TCPViewerPro.bat README.md TEST_CHECKLIST.txt README.txt UPDATE_TEST_CHECKLIST.txt TCPViewerPro/ .github/workflows/windows-build.yml
+          git add .gitignore NuGet.Config RELEASE_CHECKLIST.txt Build-TCPViewerPro.bat README.md TEST_CHECKLIST.txt README.txt UPDATE_TEST_CHECKLIST.txt TCPViewerPro/
           git diff --cached --stat
           git diff --cached --quiet && exit 0
           git commit -m "Import TCP Viewer Pro v6.2 source, cat icons and Windows build"
