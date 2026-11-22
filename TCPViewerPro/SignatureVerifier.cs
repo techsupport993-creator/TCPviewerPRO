@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 namespace TCPViewerPro;
@@ -7,7 +8,8 @@ namespace TCPViewerPro;
 // reputation data, or run PowerShell. Revocation is not queried online.
 internal static class SignatureVerifier
 {
-    internal sealed record Result(string Category, string Status, string Signer, string TechnicalResult);
+    internal sealed record Result(string Category, string Status, string Signer, string TechnicalResult,
+        string CertificateFingerprintSha256 = "");
 
     private static readonly Guid VerifyV2 = new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
     private const int TRUST_E_NOSIGNATURE = unchecked((int)0x800B0100);
@@ -87,11 +89,14 @@ internal static class SignatureVerifier
                 using var raw = X509Certificate.CreateFromSignedFile(path);
                 using var cert = new X509Certificate2(raw);
                 string signer = cert.GetNameInfo(X509NameType.SimpleName, false);
+                string fingerprint = cert.GetCertHashString(HashAlgorithmName.SHA256);
                 string subject = cert.SubjectName.Name ?? "";
                 bool microsoft = HasMicrosoftOrganization(subject);
                 return microsoft
-                    ? new("Verified Microsoft", "Trusted Authenticode signature (offline)", signer, "WinVerifyTrust succeeded; revocation not checked")
-                    : new("Verified third party", "Trusted Authenticode signature (offline)", signer, "WinVerifyTrust succeeded; revocation not checked");
+                    ? new("Verified Microsoft", "Trusted Authenticode signature (offline)", signer,
+                        "WinVerifyTrust succeeded; revocation not checked", fingerprint)
+                    : new("Verified third party", "Trusted Authenticode signature (offline)", signer,
+                        "WinVerifyTrust succeeded; revocation not checked", fingerprint);
             }
             catch
             {
