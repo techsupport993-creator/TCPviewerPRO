@@ -186,30 +186,45 @@ public sealed partial class MainForm
         };
         foreach (var (title, hint) in titles)
         {
-            var item = new Panel
+            // Fixed, separate rows prevent dock-order bugs: the v6.6.0 cards
+            // showed the status ABOVE the title and clipped the description.
+            var item = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, BackColor = panel,
-                Padding = new Padding(11, 8, 9, 5),
+                ColumnCount = 1, RowCount = 3,
+                Padding = new Padding(12, 9, 10, 7),
                 Margin = new Padding(0, 5, 7, 0)
             };
-            item.Controls.Add(new Label
+            item.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            item.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
+            item.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            item.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            var heading = new Label
             {
-                Text = title, ForeColor = muted, Dock = DockStyle.Top,
-                Font = new Font("Consolas", 9F, FontStyle.Bold), Height = 25
-            });
+                Text = title, ForeColor = muted, Dock = DockStyle.Fill,
+                Font = new Font("Consolas", 9F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true,
+                Margin = Padding.Empty
+            };
             var signal = new Label
             {
-                Text = "○ Not checked", ForeColor = muted, Dock = DockStyle.Top,
-                Font = new Font("Segoe UI Semibold", 13F), Height = 30, AutoEllipsis = true
+                Text = "○ Not checked", ForeColor = muted, Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI Semibold", 13F),
+                TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true,
+                Margin = Padding.Empty
             };
             var detail = new Label
             {
-                Text = hint, ForeColor = Color.Gainsboro,
-                Dock = DockStyle.Fill, Font = new Font("Segoe UI", 9F),
-                AutoEllipsis = true
+                Text = hint, ForeColor = Color.Gainsboro, Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 9F),
+                TextAlign = ContentAlignment.TopLeft,
+                Padding = new Padding(0, 4, 0, 0),
+                AutoEllipsis = true, Margin = Padding.Empty
             };
-            item.Controls.Add(detail);
-            item.Controls.Add(signal);
+            item.Controls.Add(heading, 0, 0);
+            item.Controls.Add(signal, 0, 1);
+            item.Controls.Add(detail, 0, 2);
             simpleChecks.Add((signal, detail));
             cards.Controls.Add(item, simpleChecks.Count - 1, 0);
         }
