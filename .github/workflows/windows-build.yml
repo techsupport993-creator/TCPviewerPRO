@@ -1,0 +1,34 @@
+name: Windows build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore TCPViewerPro/TCPViewerPro.csproj --configfile NuGet.Config -r win-x64
+      - name: Publish
+        run: dotnet publish TCPViewerPro/TCPViewerPro.csproj -c Release -r win-x64 --self-contained true --no-restore /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true
+      - name: SHA-256
+        shell: pwsh
+        run: |
+          $p = "TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe"
+          ((Get-FileHash $p -Algorithm SHA256).Hash.ToLowerInvariant() + "  TCPViewerPro.exe") | Set-Content -Encoding ascii TCPViewerPro.exe.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tcpviewerpro-windows-x64
+          path: |
+            TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe
+            TCPViewerPro.exe.sha256
