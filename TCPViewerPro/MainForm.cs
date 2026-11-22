@@ -126,7 +126,7 @@ public sealed partial class MainForm : Form
         tabs.TabPages.Add(BuildPlannedFeaturePage("PORT SCANNER", "Authorized network diagnostics", "Scan selected hosts and port ranges that you own or are authorized to assess. Include rate limits, cancellation, and clear scope confirmation."));
         tabs.TabPages.Add(BuildPlannedFeaturePage("IP INTELLIGENCE", "Remote address investigation", "Optional online lookups for ASN, provider, country, and reputation signals. Local monitoring remains functional offline; external checks will be opt-in."));
         tabs.TabPages.Add(BuildPlannedFeaturePage("DNS MONITOR", "DNS activity and resolution", "Track DNS query metadata, cache lookups, compare answers, and flag unusual query patterns. Requires an event-based DNS collector."));
-        tabs.TabPages.Add(BuildPlannedFeaturePage("NETWORK DIAGNOSTICS", "Connectivity troubleshooting", "Run gateway reachability, DNS resolution, route, adapter, and latency tests with exportable diagnostic reports."));
+        tabs.TabPages.Add(BuildNetworkDiagnosticsPage());
         tabs.TabPages.Add(BuildColorSettingsPage());
         tabs.TabPages.Add(BuildAboutPage());
 
@@ -150,6 +150,8 @@ public sealed partial class MainForm : Form
         AddNavButton("PROCESSES", 1);
         AddNavButton("SECURITY CENTER", 2);
         AddNavButton("CONNECTION HISTORY", 3);
+        AddNavSection("DIAGNOSTIC TOOLS");
+        AddNavButton("NETWORK DIAGNOSTICS", 10);
         AddNavSection("PLANNED MODULES");
         AddNavButton("ETW MONITOR", 4);
         AddNavButton("BANDWIDTH", 5);
@@ -157,7 +159,6 @@ public sealed partial class MainForm : Form
         AddNavButton("PORT SCANNER", 7);
         AddNavButton("IP INTELLIGENCE", 8);
         AddNavButton("DNS MONITOR", 9);
-        AddNavButton("NETWORK DIAGNOSTICS", 10);
         AddNavButton("SETTINGS", 11);
         AddNavButton("ABOUT", 12);
         tabs.SelectedIndexChanged += (_, _) => UpdateNavSelection();
