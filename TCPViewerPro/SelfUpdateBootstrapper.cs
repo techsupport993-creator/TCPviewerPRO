@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 namespace TCPViewerPro;
 
@@ -10,6 +11,16 @@ namespace TCPViewerPro;
 /// </summary>
 internal static class SelfUpdateBootstrapper
 {
+    private static bool IsAllowedInstallationFilename(string filename)
+    {
+        // Examples: TCPViewerPro.exe, TCPViewerPro_v6.2.0.exe,
+        // TCPViewerPro_v6.2.0 (1).exe and TCPViewerPro (2).exe.
+        // Deliberately reject unrelated executable names and path separators.
+        return Regex.IsMatch(filename,
+            @"\ATCPViewerPro(?:[_ -]v?\d+(?:\.\d+){0,3})?(?: \(\d+\))?\.exe\z",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
     public static bool TryHandle(string[] args)
     {
         if (args.Length == 0 || args[0] != "--apply-update") return false;
@@ -20,8 +31,15 @@ internal static class SelfUpdateBootstrapper
             string expected = args[2];
             if (!int.TryParse(args[3], out int oldPid) || oldPid <= 0)
                 throw new ArgumentException("Invalid previous process ID.");
-            if (!Path.GetFileName(destination).Equals("TCPViewerPro.exe", StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException("Updates can only replace TCPViewerPro.exe.");
+            // Keep the original filename when replacing the EXE. GitHub and browsers
+            // can name downloads TCPViewerPro_v6.2.0.exe or TCPViewerPro (1).exe.
+            // Limit replacement to recognizable TCP Viewer Pro names, rather than
+            // allowing the staged updater to overwrite any arbitrary .exe file.
+            string targetName = Path.GetFileName(destination);
+            if (!IsAllowedInstallationFilename(targetName))
+                throw new ArgumentException(
+                    "Unrecognized TCP Viewer Pro filename. " +
+                    "Use TCPViewerPro.exe, TCPViewerPro_v6.2.0.exe, or a numbered download copy.");
             if (expected.Length != 64 || expected.Any(c => !Uri.IsHexDigit(c)))
                 throw new ArgumentException("Invalid SHA-256 expected value.");
 
@@ -33,6 +51,8 @@ internal static class SelfUpdateBootstrapper
                 throw new InvalidOperationException("Updater is not running from its staging folder.");
             if (destination.StartsWith(updateRoot, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Cannot update a staged executable.");
+            if (!File.Exists(destination))
+                throw new FileNotFoundException("Installed TCP Viewer Pro executable was not found.", destination);
 
             using (var file = File.OpenRead(self))
             {
