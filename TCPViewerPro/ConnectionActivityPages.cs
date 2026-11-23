@@ -20,6 +20,7 @@ public sealed partial class MainForm
         string State,
         string AddressScope);
 
+    private static readonly Font ActivityStateFont = new("Segoe UI Semibold", 9F);
     private readonly List<ConnectionActivity> connectionActivity = new();
     private readonly DataGridView securityActivityGrid = new();
     private readonly DataGridView historyActivityGrid = new();
@@ -233,7 +234,7 @@ public sealed partial class MainForm
             {
                 e.CellStyle.ForeColor = stateColor;
                 e.CellStyle.SelectionForeColor = stateColor;
-                e.CellStyle.Font = new Font("Segoe UI Semibold", 9F);
+                e.CellStyle.Font = ActivityStateFont;
             }
         };
         view.CellDoubleClick += (_, e) =>
