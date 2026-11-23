@@ -29,7 +29,6 @@ public sealed partial class MainForm : Form
     readonly HashSet<string> previous = new();
     readonly List<string> history = new();
     readonly SidebarPageControl tabs = new();
-    readonly ListBox alerts = new();
     readonly DataGridView processGrid = new();
     readonly ToolStripStatusLabel footer = new("Ready");
     readonly FlowLayoutPanel navPanel = new();
@@ -161,7 +160,7 @@ public sealed partial class MainForm : Form
         AddNavButton("DNS MONITOR", 9);
         AddNavButton("SETTINGS", 11);
         AddNavButton("ABOUT", 12);
-        tabs.SelectedIndexChanged += (_, _) => UpdateNavSelection();
+        tabs.SelectedIndexChanged += (_, _) => { UpdateNavSelection(); RenderActivityViews(); };
         workspace.Controls.Add(tabs);
         workspace.Controls.Add(navPanel);
         root.Controls.Add(workspace,0,2);
@@ -455,25 +454,9 @@ public sealed partial class MainForm : Form
         return page;
     }
 
-    TabPage BuildSecurityTab()
-    {
-        var page=Page("SECURITY");
-        var intro=new Label{Dock=DockStyle.Top,Height=62,Text="CONNECTION CHANGE ALERTS\nNew remote endpoints are highlighted when first observed. These are indicators for review, not malware verdicts.",ForeColor=muted,Padding=new Padding(12,10,0,0)};
-        alerts.Dock=DockStyle.Fill;alerts.BackColor=panel;alerts.ForeColor=Color.White;alerts.BorderStyle=BorderStyle.None;
-        page.Controls.Add(alerts);page.Controls.Add(intro);return page;
-    }
+    TabPage BuildSecurityTab() => BuildSecurityCenterPage();
 
-    TabPage BuildHistoryTab()
-    {
-        var page=Page("HISTORY");
-        var top=new Panel{Dock=DockStyle.Top,Height=48,BackColor=panel};
-        var clear=Button("CLEAR HISTORY",Color.FromArgb(255,190,90),bg);clear.Left=10;clear.Top=7;clear.Click+=(_,_)=>{history.Clear();RenderHistory();};
-        var export=Button("EXPORT HISTORY",green,bg);export.Left=145;export.Top=7;export.Click+=(_,_)=>ExportHistory();
-        top.Controls.Add(clear);top.Controls.Add(export);
-        var list=new ListBox{Dock=DockStyle.Fill,BackColor=panel,ForeColor=Color.Gainsboro,BorderStyle=BorderStyle.None,Font=new Font("Consolas",9)};
-        page.Controls.Add(list);page.Controls.Add(top);
-        page.Tag=list; return page;
-    }
+    TabPage BuildHistoryTab() => BuildConnectionHistoryPage();
 
     TabPage Page(string name)=>new(name){BackColor=bg,ForeColor=Color.White,Padding=new Padding(0,8,0,0)};
     Button Button(string text,Color color,Color fore){var b=new Button{Text=text,BackColor=color,ForeColor=fore,FlatStyle=FlatStyle.Flat,Height=34,Width=120,Font=new Font("Segoe UI Semibold",8.2F),Cursor=Cursors.Hand};b.FlatAppearance.BorderSize=0;return b;}
@@ -516,8 +499,8 @@ public sealed partial class MainForm : Form
             foreach(var row in rows.Where(x=>x.Protocol=="TCP"&&x.State!="LISTENING"&&!previous.Contains(x.Key)))
             {
                 var msg=$"[{DateTime.Now:HH:mm:ss}] NEW  {row.Process} (PID {row.Pid})  {row.RemoteAddress}:{row.RemotePort}  {row.State}";
-                history.Insert(0,msg); alerts.Items.Insert(0,msg);
-                if(alerts.Items.Count>300)alerts.Items.RemoveAt(alerts.Items.Count-1);
+                history.Insert(0,msg);
+                RecordConnectionActivity(row);
             }
             previous.Clear();foreach(var k in nowKeys)previous.Add(k);
             if(history.Count>2000)history.RemoveRange(2000,history.Count-2000);
@@ -814,11 +797,7 @@ public sealed partial class MainForm : Form
         File.WriteAllText(d.FileName,sb.ToString(),Encoding.UTF8);footer.Text="CSV exported: "+d.FileName;
     }
     static string Csv(string s) => "\"" + SecurityGuards.ProtectCsvFormula(s).Replace("\"", "\"\"") + "\"";
-    void RenderHistory()
-    {
-        if(tabs.TabPages.Count<4||tabs.TabPages[3].Tag is not ListBox l)return;
-        l.BeginUpdate();l.Items.Clear();foreach(var h in history)l.Items.Add(h);l.EndUpdate();
-    }
+    void RenderHistory() => RenderActivityViews();
     void ExportHistory()
     {
         using var d=new SaveFileDialog{Filter="Text files|*.txt",FileName=$"TCPViewerPro_History_{DateTime.Now:yyyyMMdd_HHmmss}.txt"};
