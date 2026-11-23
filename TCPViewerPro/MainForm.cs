@@ -496,15 +496,19 @@ public sealed partial class MainForm : Form
             listenValue.Text=rows.Count(x=>x.State=="LISTENING").ToString();
             procValue.Text=rows.Select(x=>x.Pid).Where(x=>x>0).Distinct().Count().ToString();
             var nowKeys=rows.Where(x=>x.Protocol=="TCP" && x.State!="LISTENING").Select(x=>x.Key).ToHashSet();
+            bool hasNewActivity = false;
             foreach(var row in rows.Where(x=>x.Protocol=="TCP"&&x.State!="LISTENING"&&!previous.Contains(x.Key)))
             {
                 var msg=$"[{DateTime.Now:HH:mm:ss}] NEW  {row.Process} (PID {row.Pid})  {row.RemoteAddress}:{row.RemotePort}  {row.State}";
                 history.Insert(0,msg);
                 RecordConnectionActivity(row);
+                hasNewActivity = true;
             }
             previous.Clear();foreach(var k in nowKeys)previous.Add(k);
             if(history.Count>2000)history.RemoveRange(2000,history.Count-2000);
-            ApplyFilter();RenderHistory();RefreshProcesses(rows);
+            ApplyFilter();
+            if (hasNewActivity) RenderHistory();
+            RefreshProcesses(rows);
             footer.Text=$"Updated {DateTime.Now:HH:mm:ss}  •  {rows.Count} endpoints  •  Refresh interval: {timer.Interval / 1000} seconds";
         }
         catch(Exception ex){footer.Text="Refresh error: "+ex.Message;}
