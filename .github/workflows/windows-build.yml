@@ -5,6 +5,12 @@ on:
     branches: [main]
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish a release only after Windows testing and maintainer approval'
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: write
@@ -96,7 +102,8 @@ jobs:
             TCPViewerPro_v*.exe.sha256
           if-no-files-found: error
       - name: Publish public GitHub Release
-        if: steps.release.outputs.exists == 'false'
+        # No public release from a branch/tag push; publication requires an explicit manual run on the version tag.
+        if: github.event_name == 'workflow_dispatch' && github.ref_type == 'tag' && inputs.publish_release && steps.release.outputs.exists == 'false'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
