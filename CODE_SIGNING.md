@@ -1,5 +1,7 @@
 # Code-signing readiness for TCP Viewer Pro
 
+For the public release-approval, privacy, SignPath eligibility and verification plan, see [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md). No production signing provider is connected yet.
+
 TCP Viewer Pro's currently published builds are **unsigned**. SHA-256 release hashes prove that a download matches the bytes GitHub published, but do **not** establish the identity of the publisher or guarantee the app is safe. Do not turn off Smart App Control or Defender to install it.
 
 ## Before signing
