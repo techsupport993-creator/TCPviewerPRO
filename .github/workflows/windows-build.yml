@@ -117,12 +117,16 @@ jobs:
           $notes = @"
           TCP Viewer Pro v$env:VERSION — Windows 10/11 x64.
           
-          Includes the Matrix Green theme, cat application icon, TCP/UDP monitoring, process investigation and opt-in update checks.
+          This maintenance release upgrades to .NET 10 LTS and improves TCP connection history deduplication, CSV export error handling, address classification, IPv6 scope handling, process table selection, and privacy. Automatic GitHub update checks require opt-in.
           
-          Download TCPViewerPro_v$env:VERSION.exe for an easy-to-identify versioned filename, or TCPViewerPro.exe for existing in-app update compatibility. Both contain identical bytes. No Python or separate .NET runtime is needed.
-          Check TCPViewerPro.exe.sha256 to verify the download.
+          Includes TCP/UDP monitoring, process investigation, Security Center, Connection History, Network Diagnostics, and Matrix Green, Cyber Blue, and Midnight Dark themes.
           
-          Note: The build passed Windows CI but has not been independently runtime-tested or code-signed. Windows may display an unknown-publisher warning.
+          Download TCPViewerPro_v$env:VERSION.exe for a version-labelled copy, or TCPViewerPro.exe for in-app updater compatibility. Both contain identical bytes. No Python or separate .NET runtime is needed.
+          Compare the downloaded executable's SHA-256 hash with the corresponding .sha256 file from this release.
+          
+          Testing: GitHub Actions Windows x64 build and regression tests passed. The maintainer reports successful manual smoke tests on one Windows computer; broader compatibility and updater replacement testing remain limited.
+          
+          Security: This release is UNSIGNED. Windows may display an unknown-publisher or SmartScreen warning. Do not disable security protections merely to run it. SHA-256 validates integrity, not publisher identity.
           "@
           gh release create $env:RELEASE_TAG $exe $checksum $versionedExe $versionedChecksum --repo $env:GITHUB_REPOSITORY --title "TCP Viewer Pro v$env:VERSION" --notes $notes --target $env:GITHUB_SHA --latest
           if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed.' }
