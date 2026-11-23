@@ -79,7 +79,7 @@ public sealed partial class MainForm
         });
         scroll.Controls.Add(new Label
         {
-            Text = "Choose Green or Blue. Theme changes apply immediately and are saved automatically.",
+            Text = "Choose Matrix Green, Cyber Blue, or Midnight Dark. Changes apply immediately and are saved.",
             ForeColor = muted, AutoSize = true, Margin = new Padding(4, 0, 4, 8)
         });
         var themeSelector = new ComboBox
@@ -88,7 +88,7 @@ public sealed partial class MainForm
             BackColor = panel2, ForeColor = Color.White,
             Font = new Font("Segoe UI Semibold", 10F), Margin = new Padding(5, 2, 4, 16)
         };
-        themeSelector.Items.AddRange(new object[] { "Matrix Green", "Cyber Blue" });
+        themeSelector.Items.AddRange(new object[] { "Matrix Green", "Cyber Blue", "Midnight Dark" });
         themeSelector.SelectedItem = activeTheme;
         themeSelector.SelectedIndexChanged += (_, _) =>
         {
