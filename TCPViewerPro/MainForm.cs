@@ -874,7 +874,8 @@ public sealed partial class MainForm : Form
         public DateTime ProcessStartedUtc { get; set; } = DateTime.MinValue;
         public string Group{get;set;}="";
         // Use this stable identity for "new connection" detection; state is an attribute, not identity.
-        public string EndpointKey=>$"{Protocol}|{Pid}|{LocalAddress}:{LocalPort}|{RemoteAddress}:{RemotePort}";
+        public string EndpointKey=>SecurityGuards.EndpointIdentity(Protocol, Pid, LocalAddress,
+            LocalPort, RemoteAddress, RemotePort);
         public string Key=>$"{EndpointKey}|{State}";
     }
 }
