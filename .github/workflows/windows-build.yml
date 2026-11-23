@@ -18,10 +18,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Set up .NET 8
+      - name: Set up .NET 10
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
       - name: Check project version and existing release
         id: release
         shell: pwsh
@@ -59,7 +59,7 @@ jobs:
         env:
           REQUIRE_SIGNED_RELEASE: ${{ vars.REQUIRE_SIGNED_RELEASE }}
         run: |
-          $exe = 'TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe'
+          $exe = 'TCPViewerPro/bin/Release/net10.0-windows/win-x64/publish/TCPViewerPro.exe'
           $signature = Get-AuthenticodeSignature -FilePath $exe
           Write-Host "Authenticode status: $($signature.Status)"
           if ($env:REQUIRE_SIGNED_RELEASE -eq 'true' -and $signature.Status -ne 'Valid') {
@@ -71,7 +71,7 @@ jobs:
       - name: Generate SHA-256 checksum
         shell: pwsh
         run: |
-          $exe = 'TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe'
+          $exe = 'TCPViewerPro/bin/Release/net10.0-windows/win-x64/publish/TCPViewerPro.exe'
           if (-not (Test-Path $exe)) { throw 'Published TCPViewerPro.exe was not found.' }
           ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() + '  TCPViewerPro.exe') |
             Set-Content -Encoding ascii TCPViewerPro.exe.sha256
@@ -80,7 +80,7 @@ jobs:
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
-          $source = 'TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe'
+          $source = 'TCPViewerPro/bin/Release/net10.0-windows/win-x64/publish/TCPViewerPro.exe'
           $name = "TCPViewerPro_v$env:VERSION.exe"
           Copy-Item $source $name
           $hash = (Get-FileHash $name -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -90,7 +90,7 @@ jobs:
         with:
           name: tcpviewerpro-windows-x64
           path: |
-            TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe
+            TCPViewerPro/bin/Release/net10.0-windows/win-x64/publish/TCPViewerPro.exe
             TCPViewerPro.exe.sha256
             TCPViewerPro_v*.exe
             TCPViewerPro_v*.exe.sha256
@@ -103,7 +103,7 @@ jobs:
           VERSION: ${{ steps.release.outputs.version }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
-          $exe = 'TCPViewerPro/bin/Release/net8.0-windows/win-x64/publish/TCPViewerPro.exe'
+          $exe = 'TCPViewerPro/bin/Release/net10.0-windows/win-x64/publish/TCPViewerPro.exe'
           $checksum = 'TCPViewerPro.exe.sha256'
           $versionedExe = "TCPViewerPro_v$env:VERSION.exe"
           $versionedChecksum = "$versionedExe.sha256"
