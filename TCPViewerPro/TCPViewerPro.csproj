@@ -1,14 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>TCPViewerPro</AssemblyName>
-    <Version>6.6.2</Version>
-    <FileVersion>6.6.2.0</FileVersion>
+    <Version>6.6.3</Version>
+    <FileVersion>6.6.3.0</FileVersion>
     <RootNamespace>TCPViewerPro</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>CatLogo.ico</ApplicationIcon>
