@@ -89,6 +89,10 @@ internal static class SecurityGuards
     /// Display classification only, not an indicator of whether traffic is safe.
     /// Reserved and documentation ranges must never be mislabeled as public internet hosts.
     /// </summary>
+    internal static string EndpointIdentity(string protocol, int pid, string localAddress,
+        int localPort, string remoteAddress, int remotePort) =>
+        $"{protocol}|{pid}|{localAddress}:{localPort}|{remoteAddress}:{remotePort}";
+
     internal static string ClassifyAddressScope(string? value)
     {
         if (!IPAddress.TryParse(value, out IPAddress? address)) return "UNKNOWN";
