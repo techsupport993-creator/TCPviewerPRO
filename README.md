@@ -4,7 +4,7 @@
 
 A Windows network connection monitor and process-investigation desktop app built using C# WinForms.
 
-**Current source version: 6.6.2** (Midnight Dark theme, Security Center and Connection History refresh)
+**Current source version: 6.6.3 (unreleased bug-fix candidate).** The latest published download remains v6.6.2 and is unsigned.
 
 ## Download TCP Viewer Pro (Windows 10/11, x64)
 
@@ -40,6 +40,32 @@ When multiple copies of TCP Viewer Pro are present, **each EXE is its own instal
 - Added Windows regression tests for file identity, per-target mutex naming, and detection of running copies.
 
 **Test on Windows:** Make two files in separate folders (for example, v6.2.0 and v6.4.2). Open the older EXE and update it to v6.4.3. Reopen the other file; its version should remain unchanged. Then launch the same EXE twice, attempt its next update, and verify you receive a clear request to close the extra instance rather than an unexplained installation failure. The app remains unsigned; do not turn off Windows protections to run it.
+
+## v6.6.3 release candidate — reliability and privacy fixes (not published yet)
+
+This branch is a release candidate. **It is not a signed build or a public release.** The public v6.6.2 download remains available unchanged.
+
+- Upgrade Windows application and security test project from unsupported .NET 8 to supported .NET 10 LTS. The release is still a self-contained x64 EXE.
+- Avoid duplicate "new connection" events when an existing TCP connection changes state.
+- Handle errors when exporting the live connections list to CSV.
+- Correct Security Center display classification for link-local, multicast and documentation-range addresses. Address type is *not* a malware verdict.
+- Preserve IPv6 scope IDs from the native TCP/UDP tables for link-local interfaces.
+- Require explicit opt-in to check GitHub automatically at application startup. Existing settings without recorded consent revert to off; users can enable this in Settings.
+- Preserve the selected process and scroll position as the Processes table refreshes.
+- Extend automated regression checks and require a deliberate manually initiated release workflow. Merely pushing to `main` or pushing a version tag will **not** publish a GitHub Release.
+
+### What must happen before v6.6.3 is released
+
+1. Review and merge the bug-fix pull request **only after the PR Windows build and regression tests pass**.
+2. Download the PR workflow's Windows executable artifact and manually run it on a Windows 10/11 x64 computer.
+3. Test TCP/UDP monitoring, IPv6 scoped addresses, connected/disconnected TCP states, process selection during refresh, all three themes, and the Network Diagnostics simple/advanced pages.
+4. Check that Security Center does not mark `169.254.10.20` as a public internet address. Check that TCP state changes don't create duplicate new-connection events. Confirm auto-update checks are OFF until explicitly enabled.
+5. Export the live connections CSV and activity CSV; verify success and an understandable error message on a deliberately non-writable destination.
+6. Test the updater using a **throwaway copy** of the EXE. Do not use production machines to validate file replacement. Test normal upgrades and ensure the unsigned/signed trust checks still behave correctly.
+7. After testing, tag the exact approved commit as `v6.6.3`. Pushing the tag only creates a CI build artifact. A maintainer must explicitly run the **Windows build and public release** workflow on the `v6.6.3` tag with `publish_release=true` to actually publish the release.
+8. Verify GitHub release checksums after publication and continue to describe the binary as **unsigned** unless Authenticode signing is independently verified.
+
+**Signing note:** `REQUIRE_SIGNED_RELEASE` checks for a signature but does not create one. Enable it only after an approved signing provider and signed build step are in place.
 
 ## New in v6.6.2 — Midnight Dark + activity views
 
