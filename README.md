@@ -1,5 +1,7 @@
 # TCP Viewer Pro
 
+**Code signing policy:** [Read release-signing readiness, trust limits and future signed-release verification](CODE_SIGNING_POLICY.md). The current v6.6.2 EXE is unsigned; the project is exploring trusted signing, but no provider has approved or signed it yet.
+
 A Windows network connection monitor and process-investigation desktop app built using C# WinForms.
 
 **Current source version: 6.6.2** (Midnight Dark theme, Security Center and Connection History refresh)
