@@ -2,7 +2,7 @@
 
 A Windows network connection monitor and process-investigation desktop app built using C# WinForms.
 
-**Current source version: 6.6.1** (Simple Mode card layout fix)
+**Current source version: 6.6.2** (Midnight Dark theme, Security Center and Connection History refresh)
 
 ## Download TCP Viewer Pro (Windows 10/11, x64)
 
@@ -38,6 +38,15 @@ When multiple copies of TCP Viewer Pro are present, **each EXE is its own instal
 - Added Windows regression tests for file identity, per-target mutex naming, and detection of running copies.
 
 **Test on Windows:** Make two files in separate folders (for example, v6.2.0 and v6.4.2). Open the older EXE and update it to v6.4.3. Reopen the other file; its version should remain unchanged. Then launch the same EXE twice, attempt its next update, and verify you receive a clear request to close the extra instance rather than an unexplained installation failure. The app remains unsigned; do not turn off Windows protections to run it.
+
+## New in v6.6.2 — Midnight Dark + activity views
+
+- **Midnight Dark** joins Matrix Green and Cyber Blue in Settings. The neutral charcoal palette has blue/silver accents, applies immediately across the app, and is saved for the next launch. Existing users keep their selected theme.
+- **Security Center** now uses a readable, sortable-looking (but deliberately unsorted to preserve newest-first ordering) activity table with columns for observation time, application, PID, remote endpoint, TCP state and address type. Search by application/PID/address/state; filter public, private/local, or other addresses; copy selected event or export visible rows as CSV. Address classification is **not** a malware verdict.
+- **Connection History** now has structured columns, searchable history and state filters, Copy Selected, Export CSV (currently visible rows), and a **confirmation before clearing**. All activity stays in memory unless the user exports it; existing exported files are never deleted.
+- **Performance:** Activity grids update when new endpoints are observed or the user changes view/filter, not continuously without changes. Up to 2,000 observations are retained for the current session; Security Center displays up to 300 matches.
+- **Privacy:** No remote telemetry, background upload, automatic process termination or changes to the updater have been introduced.
+- **What to test on Windows:** Change between all three themes, restart to check persistence, visit Security Center and Connection History during active browsing, try the search and filters, export a CSV and inspect it, verify Copy Selected, clear the log (including Cancel), and resize the window at 100% and 150% display scale.
 
 ## Fixed in v6.6.1 — clearer Simple Mode result cards
 

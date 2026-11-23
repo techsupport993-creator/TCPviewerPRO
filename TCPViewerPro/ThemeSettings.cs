@@ -11,6 +11,7 @@ public sealed partial class MainForm
 {
     private const string GreenTheme = "Matrix Green";
     private const string BlueTheme = "Cyber Blue";
+    private const string DarkTheme = "Midnight Dark";
     private string activeTheme = GreenTheme;
 
     private static readonly string ThemePath = Path.Combine(
@@ -22,8 +23,9 @@ public sealed partial class MainForm
         Color SecondaryAccent, Color Muted, Color GridLine,
         Color AlternateRow, Color SelectedRow, Color DarkButton);
 
-    private static ThemePalette PaletteFor(string name) => name == BlueTheme
-        ? new ThemePalette(
+    private static ThemePalette PaletteFor(string name) => name switch
+    {
+        BlueTheme => new ThemePalette(
             Color.FromArgb(12, 17, 29),
             Color.FromArgb(20, 29, 46),
             Color.FromArgb(25, 38, 59),
@@ -33,8 +35,23 @@ public sealed partial class MainForm
             Color.FromArgb(38, 53, 75),
             Color.FromArgb(17, 25, 40),
             Color.FromArgb(31, 72, 94),
-            Color.FromArgb(7, 20, 32))
-        : new ThemePalette(
+            Color.FromArgb(7, 20, 32)),
+
+        // Accessible, neutral charcoal palette with cool silver-blue accents.
+        // TCP-state colors remain separate from the surrounding UI.
+        DarkTheme => new ThemePalette(
+            Color.FromArgb(12, 14, 19),      // window background
+            Color.FromArgb(22, 25, 32),      // main panels
+            Color.FromArgb(32, 36, 46),      // raised controls
+            Color.FromArgb(141, 184, 250),   // headings and selection accent
+            Color.FromArgb(109, 222, 178),   // secondary accent
+            Color.FromArgb(169, 181, 200),   // descriptions / secondary labels
+            Color.FromArgb(48, 54, 66),      // grid dividers
+            Color.FromArgb(26, 30, 38),      // alternating rows
+            Color.FromArgb(45, 68, 99),      // selection background
+            Color.FromArgb(14, 20, 30)),     // contrasting button text
+
+        _ => new ThemePalette(
             Color.FromArgb(7, 20, 13),       // black-green background
             Color.FromArgb(13, 35, 24),      // panel surface
             Color.FromArgb(22, 54, 37),      // raised surface
@@ -44,7 +61,8 @@ public sealed partial class MainForm
             Color.FromArgb(32, 75, 49),      // grid separators
             Color.FromArgb(10, 27, 18),      // alternating rows
             Color.FromArgb(24, 78, 48),      // selection highlight
-            Color.FromArgb(5, 35, 20));     // dark green button text
+            Color.FromArgb(5, 35, 20))
+    };
 
     private ThemePalette CurrentPalette() => new(
         bg, panel, panel2, cyan, green, muted,
@@ -80,7 +98,7 @@ public sealed partial class MainForm
                     ?? GreenTheme;
         }
         catch { /* Invalid or inaccessible theme file: use Matrix Green. */ }
-        SetPalette(theme == BlueTheme ? BlueTheme : GreenTheme);
+        SetPalette(theme == BlueTheme || theme == DarkTheme ? theme : GreenTheme);
     }
 
     private void SaveThemeSettings()
@@ -101,7 +119,7 @@ public sealed partial class MainForm
 
     private void ApplyTheme(string name)
     {
-        if (name != GreenTheme && name != BlueTheme) return;
+        if (name != GreenTheme && name != BlueTheme && name != DarkTheme) return;
         if (activeTheme == name) return;
         ThemePalette old = CurrentPalette();
         SetPalette(name);
