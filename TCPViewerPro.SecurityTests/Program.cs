@@ -58,6 +58,35 @@ Assert(SecurityGuards.IsPrivateOrSharedAddress(IPAddress.Parse("192.168.0.1")), 
 Assert(SecurityGuards.IsPrivateOrSharedAddress(IPAddress.Parse("fc00::1")), "private IPv6 flagged for extra warning");
 Assert(!SecurityGuards.IsPrivateOrSharedAddress(IPAddress.Parse("8.8.8.8")), "public address not flagged");
 
+// Address classification must not present reserved or LAN traffic as public internet activity.
+Assert(SecurityGuards.ClassifyAddressScope("169.254.10.20") == "PRIVATE / LOCAL",
+    "IPv4 link-local address is local");
+Assert(SecurityGuards.ClassifyAddressScope("192.168.1.9") == "PRIVATE / LOCAL",
+    "private LAN IP is local");
+Assert(SecurityGuards.ClassifyAddressScope("100.64.12.14") == "PRIVATE / LOCAL",
+    "carrier shared IP is local/shared");
+Assert(SecurityGuards.ClassifyAddressScope("192.0.2.10") == "OTHER",
+    "documentation IP is not public");
+Assert(SecurityGuards.ClassifyAddressScope("203.0.113.10") == "OTHER",
+    "TEST-NET-3 is not public");
+Assert(SecurityGuards.ClassifyAddressScope("224.0.0.1") == "OTHER",
+    "IPv4 multicast is not public");
+Assert(SecurityGuards.ClassifyAddressScope("2001:db8::1") == "OTHER",
+    "IPv6 documentation address is not public");
+Assert(SecurityGuards.ClassifyAddressScope("fe80::1%2") == "PRIVATE / LOCAL",
+    "IPv6 scoped link-local address is local");
+Assert(SecurityGuards.ClassifyAddressScope("1.1.1.1") == "PUBLIC",
+    "ordinary public IPv4 is public");
+Assert(SecurityGuards.ClassifyAddressScope("invalid-ip") == "UNKNOWN",
+    "invalid IP stays unknown");
+
+// The current TCP state must not affect connection identity.
+string endpoint = SecurityGuards.EndpointIdentity("TCP", 1234, "192.168.1.10", 50123, "1.1.1.1", 443);
+Assert(endpoint == SecurityGuards.EndpointIdentity("TCP", 1234, "192.168.1.10", 50123, "1.1.1.1", 443),
+    "same endpoint identity is stable across refreshes");
+Assert(endpoint != SecurityGuards.EndpointIdentity("TCP", 1234, "192.168.1.10", 50124, "1.1.1.1", 443),
+    "changed local port creates a separate endpoint");
+
 Assert(SecurityGuards.IsCriticalWindowsProcess("lsass", @"C:\Windows\System32\lsass.exe"), "LSASS protected");
 Assert(SecurityGuards.IsCriticalWindowsProcess("svchost", @"C:\Windows\System32\svchost.exe"), "svchost protected");
 Assert(SecurityGuards.IsCriticalWindowsProcess("notepad", ""), "inaccessible process identity protected");
