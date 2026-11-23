@@ -495,9 +495,10 @@ public sealed partial class MainForm : Form
             udpValue.Text=rows.Count(x=>x.Protocol=="UDP").ToString();
             listenValue.Text=rows.Count(x=>x.State=="LISTENING").ToString();
             procValue.Text=rows.Select(x=>x.Pid).Where(x=>x>0).Distinct().Count().ToString();
-            var nowKeys=rows.Where(x=>x.Protocol=="TCP" && x.State!="LISTENING").Select(x=>x.Key).ToHashSet();
+            // TCP state changes should not create duplicate "new connection" events.
+            var nowKeys=rows.Where(x=>x.Protocol=="TCP" && x.State!="LISTENING").Select(x=>x.EndpointKey).ToHashSet();
             bool hasNewActivity = false;
-            foreach(var row in rows.Where(x=>x.Protocol=="TCP"&&x.State!="LISTENING"&&!previous.Contains(x.Key)))
+            foreach(var row in rows.Where(x=>x.Protocol=="TCP"&&x.State!="LISTENING"&&!previous.Contains(x.EndpointKey)))
             {
                 var msg=$"[{DateTime.Now:HH:mm:ss}] NEW  {row.Process} (PID {row.Pid})  {row.RemoteAddress}:{row.RemotePort}  {row.State}";
                 history.Insert(0,msg);
@@ -798,7 +799,16 @@ public sealed partial class MainForm : Form
         var rows=binding.List?.Cast<ConnectionRow>().ToList()??current;
         var sb=new StringBuilder("Protocol,Process,PID,SignatureCategory,Signer,CompanyMetadata,LocalAddress,LocalPort,RemoteAddress,RemotePort,State,ExecutablePath\r\n");
         foreach(var r in rows)sb.AppendLine(string.Join(",",new[]{r.Protocol,r.Process,r.Pid.ToString(),r.PublisherCategory,r.Signer,r.Company,r.LocalAddress,r.LocalPort.ToString(),r.RemoteAddress,r.RemotePort.ToString(),r.State,r.Path}.Select(Csv)));
-        File.WriteAllText(d.FileName,sb.ToString(),Encoding.UTF8);footer.Text="CSV exported: "+d.FileName;
+        try
+        {
+            File.WriteAllText(d.FileName, sb.ToString(), Encoding.UTF8);
+            footer.Text = "CSV exported: " + d.FileName;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "Could not export connections:\n" + ex.Message,
+                "Export failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
     }
     static string Csv(string s) => "\"" + SecurityGuards.ProtectCsvFormula(s).Replace("\"", "\"\"") + "\"";
     void RenderHistory() => RenderActivityViews();
@@ -811,17 +821,44 @@ public sealed partial class MainForm : Form
     {
         if(processGrid.Columns.Count==0)return;
         var groups=rows.Where(x=>x.Pid>0).GroupBy(x=>x.Pid).OrderByDescending(g=>g.Count()).ToList();
-        processGrid.Rows.Clear();
-        foreach(var group in groups)
+        int selectedPid = processGrid.CurrentRow?.Cells[0].Value is int pid ? pid : -1;
+        int previousScrollRow = -1;
+        try { previousScrollRow = processGrid.FirstDisplayedScrollingRowIndex; }
+        catch (InvalidOperationException) { /* No visible rows yet. */ }
+        processGrid.SuspendLayout();
+        try
         {
-            var r=group.First();
-            bool matchesCategory = MatchesPublisherFilter(r.PublisherCategory, r.Company, processPublisherFilter);
-            if (!matchesCategory) continue;
-            if (processSearch.Length > 0 &&
-                !$"{r.Pid} {r.Process} {r.PublisherCategory} {r.Company} {r.Signer} {r.Path}".Contains(processSearch, StringComparison.OrdinalIgnoreCase)) continue;
-            processGrid.Rows.Add(group.Key,r.Process,group.Count(),r.PublisherCategory,r.Company,r.Path);
+            processGrid.Rows.Clear();
+            foreach(var group in groups)
+            {
+                var r=group.First();
+                bool matchesCategory = MatchesPublisherFilter(r.PublisherCategory, r.Company, processPublisherFilter);
+                if (!matchesCategory) continue;
+                if (processSearch.Length > 0 &&
+                    !$"{r.Pid} {r.Process} {r.PublisherCategory} {r.Company} {r.Signer} {r.Path}".Contains(processSearch, StringComparison.OrdinalIgnoreCase)) continue;
+                processGrid.Rows.Add(group.Key,r.Process,group.Count(),r.PublisherCategory,r.Company,r.Path);
+            }
+            ApplyProcessSort();
+            if (selectedPid >= 0)
+            {
+                foreach (DataGridViewRow row in processGrid.Rows)
+                {
+                    if (row.Cells[0].Value is not int rowPid || rowPid != selectedPid) continue;
+                    var firstVisibleColumn = processGrid.Columns.Cast<DataGridViewColumn>()
+                        .Where(column => column.Visible).OrderBy(column => column.DisplayIndex).FirstOrDefault();
+                    if (firstVisibleColumn is not null)
+                        processGrid.CurrentCell = row.Cells[firstVisibleColumn.Index];
+                    row.Selected = true;
+                    break;
+                }
+            }
+            if (previousScrollRow >= 0 && previousScrollRow < processGrid.Rows.Count)
+            {
+                try { processGrid.FirstDisplayedScrollingRowIndex = previousScrollRow; }
+                catch (InvalidOperationException) { /* Row may not be displayable at this size. */ }
+            }
         }
-        ApplyProcessSort();
+        finally { processGrid.ResumeLayout(); }
     }
 
     sealed class ConnectionRow
@@ -836,6 +873,9 @@ public sealed partial class MainForm : Form
         public string SignatureDetail{get;set;}="";
         public DateTime ProcessStartedUtc { get; set; } = DateTime.MinValue;
         public string Group{get;set;}="";
-        public string Key=>$"{Protocol}|{Pid}|{LocalAddress}:{LocalPort}|{RemoteAddress}:{RemotePort}|{State}";
+        // Use this stable identity for "new connection" detection; state is an attribute, not identity.
+        public string EndpointKey=>SecurityGuards.EndpointIdentity(Protocol, Pid, LocalAddress,
+            LocalPort, RemoteAddress, RemotePort);
+        public string Key=>$"{EndpointKey}|{State}";
     }
 }

@@ -102,13 +102,15 @@ internal static class IpHelperTables
                 int o = 4 + i * rowSize;
                 byte[] local = new byte[16], remote = new byte[16];
                 Marshal.Copy(IntPtr.Add(buffer, o), local, 0, 16);
+                uint localScopeId = unchecked((uint)IPAddress.NetworkToHostOrder(Marshal.ReadInt32(buffer, o + 16)));
                 uint localPort = unchecked((uint)Marshal.ReadInt32(buffer, o + 20));
                 Marshal.Copy(IntPtr.Add(buffer, o + 24), remote, 0, 16);
+                uint remoteScopeId = unchecked((uint)IPAddress.NetworkToHostOrder(Marshal.ReadInt32(buffer, o + 40)));
                 uint remotePort = unchecked((uint)Marshal.ReadInt32(buffer, o + 44));
                 int state = Marshal.ReadInt32(buffer, o + 48);
                 int pid = Marshal.ReadInt32(buffer, o + 52);
-                rows.Add(new TcpEndpoint(new IPAddress(local), DecodePort(localPort),
-                    new IPAddress(remote), DecodePort(remotePort), state, pid));
+                rows.Add(new TcpEndpoint(new IPAddress(local, localScopeId), DecodePort(localPort),
+                    new IPAddress(remote, remoteScopeId), DecodePort(remotePort), state, pid));
             }
             return rows;
         }
@@ -135,9 +137,10 @@ internal static class IpHelperTables
                 int o = 4 + i * rowSize;
                 byte[] local = new byte[16];
                 Marshal.Copy(IntPtr.Add(buffer, o), local, 0, 16);
+                uint localScopeId = unchecked((uint)IPAddress.NetworkToHostOrder(Marshal.ReadInt32(buffer, o + 16)));
                 uint localPort = unchecked((uint)Marshal.ReadInt32(buffer, o + 20));
                 int pid = Marshal.ReadInt32(buffer, o + 24);
-                rows.Add(new UdpEndpoint(new IPAddress(local), DecodePort(localPort), pid));
+                rows.Add(new UdpEndpoint(new IPAddress(local, localScopeId), DecodePort(localPort), pid));
             }
             return rows;
         }

@@ -257,17 +257,8 @@ public sealed partial class MainForm
         view.ContextMenuStrip = menu;
     }
 
-    private static string GetAddressScope(string address)
-    {
-        if (!IPAddress.TryParse(address, out var ip)) return "UNKNOWN";
-        if (IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any)
-            || ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || SecurityGuards.IsPrivateOrSharedAddress(ip))
-            return "PRIVATE / LOCAL";
-        if (ip.IsIPv6Multicast || (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
-                && ip.GetAddressBytes()[0] >= 224))
-            return "OTHER";
-        return "PUBLIC";
-    }
+    private static string GetAddressScope(string address) =>
+        SecurityGuards.ClassifyAddressScope(address);
 
     private void RecordConnectionActivity(ConnectionRow row)
     {

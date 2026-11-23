@@ -19,7 +19,9 @@ public sealed partial class MainForm
     private sealed class UpdatePreferences
     {
         public string Repository { get; set; } = "techsupport993-creator/TCPviewerPRO";
-        public bool AutoCheck { get; set; } = true;
+        // Explicit opt-in is required. Old settings without consent are disabled on upgrade.
+        public bool AutoCheck { get; set; } = false;
+        public bool AutoCheckConsent { get; set; } = false;
         public DateTimeOffset LastCheckedUtc { get; set; } = DateTimeOffset.MinValue;
         // Cache update checks for the exact EXE and version that was checked.
         // Multiple copies must not inherit each other's 24-hour suppression.
@@ -62,7 +64,8 @@ public sealed partial class MainForm
             var saved = JsonSerializer.Deserialize<UpdatePreferences>(File.ReadAllText(UpdatePreferencesPath));
             if (saved is null) return;
             updatePrefs.Repository = saved.Repository ?? "";
-            updatePrefs.AutoCheck = saved.AutoCheck;
+            updatePrefs.AutoCheckConsent = saved.AutoCheckConsent;
+            updatePrefs.AutoCheck = saved.AutoCheck && saved.AutoCheckConsent;
             updatePrefs.LastCheckedUtc = saved.LastCheckedUtc;
             updatePrefs.LastCheckedExecutablePath = saved.LastCheckedExecutablePath ?? "";
             updatePrefs.LastCheckedExecutableVersion = saved.LastCheckedExecutableVersion ?? "";
@@ -94,8 +97,8 @@ public sealed partial class MainForm
         });
         scroll.Controls.Add(new Label
         {
-            Text = "Automatically check GitHub Releases when launching the app (at most once every 24 hours " +
-                   "per running copy/version). Installing always requires your approval.",
+            Text = "Optional: contact GitHub Releases on startup (at most once every 24 hours " +
+                   "per running copy/version). Disabled by default; installing always requires approval.",
             ForeColor = muted, Width = 580, Height = 42, Margin = new Padding(4, 0, 4, 6)
         });
         scroll.Controls.Add(new Label
@@ -113,11 +116,12 @@ public sealed partial class MainForm
         scroll.Controls.Add(repoBox);
         var autoBox = new CheckBox
         {
-            Text = "Automatically check when the app starts", Checked = updatePrefs.AutoCheck,
+            Text = "Check automatically on startup (contacts GitHub)", Checked = updatePrefs.AutoCheck,
             ForeColor = Color.White, AutoSize = true, Margin = new Padding(7, 4, 4, 9)
         };
         autoBox.CheckedChanged += (_, _) =>
         {
+            updatePrefs.AutoCheckConsent = autoBox.Checked;
             updatePrefs.AutoCheck = autoBox.Checked;
             SaveUpdatePreferences();
         };
@@ -197,7 +201,7 @@ public sealed partial class MainForm
 
     private async Task AutoCheckForUpdatesAsync()
     {
-        if (!updatePrefs.AutoCheck || !ValidRepo(updatePrefs.Repository)) return;
+        if (!updatePrefs.AutoCheck || !updatePrefs.AutoCheckConsent || !ValidRepo(updatePrefs.Repository)) return;
         string currentPath = Path.GetFullPath(Application.ExecutablePath);
         string version = (typeof(MainForm).Assembly.GetName().Version ??
             new Version(0, 0)).ToString();

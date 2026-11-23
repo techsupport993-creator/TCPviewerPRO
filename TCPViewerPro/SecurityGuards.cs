@@ -85,6 +85,46 @@ internal static class SecurityGuards
         return false;
     }
 
+    /// <summary>
+    /// Display classification only, not an indicator of whether traffic is safe.
+    /// Reserved and documentation ranges must never be mislabeled as public internet hosts.
+    /// </summary>
+    internal static string EndpointIdentity(string protocol, int pid, string localAddress,
+        int localPort, string remoteAddress, int remotePort) =>
+        $"{protocol}|{pid}|{localAddress}:{localPort}|{remoteAddress}:{remotePort}";
+
+    internal static string ClassifyAddressScope(string? value)
+    {
+        if (!IPAddress.TryParse(value, out IPAddress? address)) return "UNKNOWN";
+        if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
+        if (IPAddress.IsLoopback(address) || address.Equals(IPAddress.Any) ||
+            address.Equals(IPAddress.IPv6Any) || address.IsIPv6LinkLocal ||
+            address.IsIPv6SiteLocal || IsPrivateOrSharedAddress(address))
+            return "PRIVATE / LOCAL";
+
+        if (address.AddressFamily == AddressFamily.InterNetwork)
+        {
+            byte[] b = address.GetAddressBytes();
+            if (b[0] == 169 && b[1] == 254) return "PRIVATE / LOCAL";
+            if (b[0] == 0 || b[0] >= 224 ||
+                (b[0] == 192 && b[1] == 0 && b[2] == 2) || // TEST-NET-1
+                (b[0] == 198 && b[1] == 51 && b[2] == 100) || // TEST-NET-2
+                (b[0] == 203 && b[1] == 0 && b[2] == 113) || // TEST-NET-3
+                (b[0] == 198 && (b[1] == 18 || b[1] == 19))) // benchmarking
+                return "OTHER";
+            return "PUBLIC";
+        }
+        if (address.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            byte[] b = address.GetAddressBytes();
+            if (address.IsIPv6Multicast ||
+                (b[0] == 0x20 && b[1] == 0x01 && b[2] == 0x0D && b[3] == 0xB8)) // documentation
+                return "OTHER";
+            return "PUBLIC";
+        }
+        return "UNKNOWN";
+    }
+
     internal static bool IsExpectedReleaseAssetUrl(string? url, string? repo, string? tag, string file)
     {
         if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(repo) ||
