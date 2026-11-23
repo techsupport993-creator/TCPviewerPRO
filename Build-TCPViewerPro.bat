@@ -10,17 +10,17 @@ echo.
 
 where dotnet >nul 2>nul
 if errorlevel 1 (
-    echo [!] .NET 8 SDK was not found.
-    echo Install the .NET 8 SDK from:
-    echo https://dotnet.microsoft.com/en-us/download/dotnet/8.0
-    start "" "https://dotnet.microsoft.com/en-us/download/dotnet/8.0"
+    echo [!] .NET 10 SDK was not found.
+    echo Install the .NET 10 SDK from:
+    echo https://dotnet.microsoft.com/en-us/download/dotnet/10.0
+    start "" "https://dotnet.microsoft.com/en-us/download/dotnet/10.0"
     pause
     exit /b 1
 )
 
 set "PROJECT=%~dp0TCPViewerPro\TCPViewerPro.csproj"
 set "CONFIG=%~dp0NuGet.Config"
-set "OUT=%~dp0TCPViewerPro\bin\Release\net8.0-windows\win-x64\publish\TCPViewerPro.exe"
+set "OUT=%~dp0TCPViewerPro\bin\Release\net10.0-windows\win-x64\publish\TCPViewerPro.exe"
 
 if not exist "%PROJECT%" (
     echo [ERROR] Could not find the project:
