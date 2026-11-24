@@ -317,62 +317,166 @@ public sealed partial class MainForm : Form
     TabPage BuildConnectionsTab()
     {
         var page = Page("CONNECTIONS");
-        var bar = new Panel { Dock = DockStyle.Top, Height = 95, BackColor = panel,
-            Padding = new Padding(10, 7, 6, 6), AutoScroll = true, AutoScrollMinSize = new Size(1235, 90) };
-        search.Width = 205;
-        search.Location = new Point(10, 8);
-        search.PlaceholderText = "Search process, IP, port, company…";
+
+        // Explicit rows prevent a docked toolbar from obscuring connection headers
+        // or data when the app is resized or Windows display scaling changes.
+        var pageLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, BackColor = bg, ColumnCount = 1, RowCount = 3,
+            Margin = Padding.Empty, Padding = Padding.Empty
+        };
+        pageLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        pageLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        pageLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        page.Controls.Add(pageLayout);
+
+        var bar = new Panel
+        {
+            Dock = DockStyle.Fill, Margin = Padding.Empty, BackColor = panel
+        };
+        search.Width = 232;
+        search.Height = 30;
+        search.Location = new Point(14, 12);
+        search.PlaceholderText = "Search connections, apps or IPs...";
         StyleText(search);
         search.TextChanged += (_, _) => ApplyFilter();
 
-        var filter = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 124, Left = 226, Top = 8, BackColor = panel2, ForeColor = Color.White };
+        var filter = new ComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList, Width = 100, Height = 30,
+            BackColor = panel2, ForeColor = Color.White
+        };
         filter.Items.AddRange(new object[] { "ALL", "TCP", "UDP", "LISTENING", "ESTABLISHED" });
         filter.SelectedIndex = 0;
         filter.SelectedIndexChanged += (_, _) => { activeFilter = filter.Text; ApplyFilter(); };
+        new ToolTip().SetToolTip(filter, "Show connections by protocol or state.");
 
         publisherFilterBox.DropDownStyle = ComboBoxStyle.DropDownList;
         publisherFilterBox.BackColor = panel2;
         publisherFilterBox.ForeColor = Color.White;
-        publisherFilterBox.Width = 197;
-        publisherFilterBox.Left = 362;
-        publisherFilterBox.Top = 8;
+        publisherFilterBox.Width = 180;
+        publisherFilterBox.Height = 30;
         publisherFilterBox.Items.AddRange(PublisherFilterOptions());
         publisherFilterBox.SelectedIndex = 0;
-        publisherFilterBox.SelectedIndexChanged += (_, _) => { activePublisherFilter = publisherFilterBox.Text; ApplyFilter(); };
-        new ToolTip().SetToolTip(publisherFilterBox, "Verified MS uses Authenticode. The optional MS + METADATA filter also uses spoofable CompanyName metadata.");
+        publisherFilterBox.SelectedIndexChanged += (_, _) =>
+        {
+            activePublisherFilter = publisherFilterBox.Text;
+            ApplyFilter();
+        };
+        new ToolTip().SetToolTip(publisherFilterBox,
+            "Publisher trust uses offline Authenticode checks. Company metadata can be spoofed.");
 
-        var rate = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 99, Left = 570, Top = 8, BackColor = panel2, ForeColor = Color.White };
+        var rate = new ComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList, Width = 88, Height = 30,
+            BackColor = panel2, ForeColor = Color.White
+        };
         rate.Items.AddRange(new object[] { "1 sec", "2 sec", "5 sec", "10 sec" });
         rate.SelectedIndex = 1;
         rate.SelectedIndexChanged += (_, _) =>
         {
-            timer.Interval = rate.SelectedIndex switch { 0 => 1000, 1 => 2000, 2 => 5000, _ => 10000 };
-            if (!monitoringPaused) refreshIndicator.Text = $"AUTO • {timer.Interval / 1000} SEC";
+            timer.Interval = rate.SelectedIndex switch
+            {
+                0 => 1000, 1 => 2000, 2 => 5000, _ => 10000
+            };
+            if (!monitoringPaused)
+                refreshIndicator.Text = $"AUTO • {timer.Interval / 1000} SEC";
         };
 
         visibleCount.ForeColor = muted;
-        visibleCount.AutoSize = true;
-        visibleCount.Location = new Point(683, 12);
+        visibleCount.AutoSize = false;
+        visibleCount.AutoEllipsis = true;
+        visibleCount.Height = 25;
+        visibleCount.TextAlign = ContentAlignment.MiddleLeft;
         visibleCount.Text = "Loading endpoints…";
 
-        var export = Button("EXPORT CSV", green, bg); export.Left = 10; export.Top = 45; export.Click += (_, _) => ExportCsv();
-        var dns = Button("DNS LOOKUP", cyan, bg); dns.Left = 140; dns.Top = 45; dns.Click += async (_, _) => await LookupSelectedDns();
-        var close = Button("CLOSE TCP", Color.FromArgb(255, 190, 90), bg); close.Left = 270; close.Top = 45; close.Click += (_, _) => CloseSelectedTcp();
-        var block = Button("BLOCK REMOTE IP", Color.FromArgb(255, 105, 115), bg); block.Left = 400; block.Top = 45; block.Width = 145; block.Click += (_, _) => BlockSelectedIp();
-        var kill = Button("END PROCESS", Color.FromArgb(255, 155, 95), bg); kill.Left = 555; kill.Top = 45; kill.Click += (_, _) => KillSelectedProcess();
-        var inspect = Button("INSPECT", Color.FromArgb(180, 145, 255), bg); inspect.Left = 682; inspect.Top = 45; inspect.Width = 112; inspect.Click += (_, _) => InspectSelectedProcess();
-        var group = new CheckBox { Text = "GROUP PROCESS", Checked = groupByProcess, AutoSize = true,
-            ForeColor = Color.White, Location = new Point(811, 55) };
-        group.CheckedChanged += (_, _) => { groupByProcess = group.Checked; ApplyFilter(); ScheduleGridLayoutSave(); };
-        var columns = Button("COLUMNS", cyan, bg); columns.Left = 945; columns.Top = 45; columns.Width = 110;
-        columns.Click += (_, _) => ShowColumnMenu(columns);
+        // The most useful investigation actions stay visible. Less-frequent and
+        // destructive actions move into a clearly named dropdown.
         var explain = Button("EXPLAIN", green, PaletteFor(activeTheme).DarkButton);
-        explain.Left = 1067; explain.Top = 45; explain.Width = 125;
+        explain.Width = 145;
         explain.Click += (_, _) => InvestigateSelectedConnection();
         new ToolTip().SetToolTip(explain,
-            "Open the read-only Simple/Advanced Connection Investigator for the selected endpoint.");
-        bar.Controls.AddRange(new Control[] { search, filter, publisherFilterBox, rate, visibleCount, export, dns, close, block, kill, inspect, group, columns, explain });
-        page.Controls.Add(bar);
+            "Explain the selected connection in Simple or Advanced mode.");
+
+        var inspect = Button("INSPECT", Color.FromArgb(180, 145, 255), bg);
+        inspect.Width = 110;
+        inspect.Click += (_, _) => InspectSelectedProcess();
+
+        var export = Button("EXPORT CSV", cyan, PaletteFor(activeTheme).DarkButton);
+        export.Width = 112;
+        export.Click += (_, _) => ExportCsv();
+
+        var more = Button("MORE ACTIONS ▾", panel2, Color.White);
+        more.Width = 126;
+        var moreMenu = new ContextMenuStrip { BackColor = panel2, ForeColor = Color.White };
+        moreMenu.Items.Add("DNS lookup for selected remote IP", null,
+            async (_, _) => await LookupSelectedDns());
+        moreMenu.Items.Add(new ToolStripSeparator());
+        moreMenu.Items.Add("Close selected TCP connection (confirm)", null,
+            (_, _) => CloseSelectedTcp());
+        moreMenu.Items.Add("Block remote IP for all apps (confirm)", null,
+            (_, _) => BlockSelectedIp());
+        moreMenu.Items.Add("End owning process (confirm)", null,
+            (_, _) => KillSelectedProcess());
+        more.Click += (_, _) => moreMenu.Show(more, new Point(0, more.Height));
+
+        var columns = Button("COLUMNS", panel2, Color.White);
+        columns.Width = 104;
+        columns.Click += (_, _) => ShowColumnMenu(columns);
+        new ToolTip().SetToolTip(columns,
+            "Select columns, or switch to a recommended compact connection layout.");
+
+        var group = new CheckBox
+        {
+            Text = "GROUP PROCESSES", Checked = groupByProcess,
+            AutoSize = false, Width = 144, Height = 34,
+            TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.White
+        };
+        var groupMenu = new ToolStripMenuItem("Group connections by process")
+        {
+            Checked = groupByProcess, CheckOnClick = true
+        };
+        group.CheckedChanged += (_, _) =>
+        {
+            groupByProcess = group.Checked;
+            groupMenu.Checked = group.Checked;
+            ApplyFilter();
+            ScheduleGridLayoutSave();
+        };
+        groupMenu.CheckedChanged += (_, _) => group.Checked = groupMenu.Checked;
+        moreMenu.Items.Add(new ToolStripSeparator());
+        moreMenu.Items.Add(groupMenu);
+
+        var toolbarButtons = new Control[] { explain, inspect, export, more, columns, group };
+        void ArrangeToolbar()
+        {
+            filter.Location = new Point(search.Right + 10, 12);
+            publisherFilterBox.Location = new Point(filter.Right + 10, 12);
+            rate.Location = new Point(publisherFilterBox.Right + 10, 12);
+            visibleCount.Left = rate.Right + 14;
+            visibleCount.Top = 12;
+            visibleCount.Width = Math.Max(70, bar.ClientSize.Width - visibleCount.Left - 12);
+            visibleCount.Visible = bar.ClientSize.Width >= visibleCount.Left + 115;
+
+            int nextX = 14;
+            foreach (var control in toolbarButtons)
+            {
+                control.Left = nextX;
+                control.Top = 60;
+                nextX = control.Right + 8;
+            }
+            // The same toggle remains available under MORE ACTIONS at narrow widths.
+            group.Visible = group.Right + 8 <= bar.ClientSize.Width;
+        }
+
+        bar.Controls.AddRange(new Control[]
+        {
+            search, filter, publisherFilterBox, rate, visibleCount,
+            explain, inspect, export, more, columns, group
+        });
+        bar.Resize += (_, _) => ArrangeToolbar();
+        ArrangeToolbar();
+        pageLayout.Controls.Add(bar, 0, 0);
 
         ConfigureGrid(grid);
         AddCol("Group", "PROCESS GROUP", 178);
@@ -404,24 +508,35 @@ public sealed partial class MainForm : Form
                 grid.ClearSelection();
                 grid.Rows[e.RowIndex].Selected = true;
                 var colIndex = e.ColumnIndex >= 0 && grid.Columns[e.ColumnIndex].Visible
-                    ? e.ColumnIndex : grid.Columns.Cast<DataGridViewColumn>()
+                    ? e.ColumnIndex
+                    : grid.Columns.Cast<DataGridViewColumn>()
                         .Where(c => c.Visible).OrderBy(c => c.DisplayIndex).First().Index;
                 grid.CurrentCell = grid.Rows[e.RowIndex].Cells[colIndex];
             }
         };
         grid.ContextMenuStrip = BuildConnectionContextMenu();
-        grid.CellDoubleClick += (_, e) => { if (e.RowIndex >= 0) InspectSelectedProcess(); };
+        grid.CellDoubleClick += (_, e) =>
+        {
+            if (e.RowIndex >= 0) InspectSelectedProcess();
+        };
         grid.Dock = DockStyle.Fill;
+        grid.Margin = Padding.Empty;
         grid.DataSource = binding;
         ActivateGridLayoutPersistence();
         grid.SelectionChanged += (_, _) => UpdateDetails();
-        var bottom = new Panel { Dock = DockStyle.Bottom, Height = 44, BackColor = panel, Padding = new Padding(10, 8, 10, 5) };
+        pageLayout.Controls.Add(grid, 0, 1);
+
+        var bottom = new Panel
+        {
+            Dock = DockStyle.Fill, Margin = Padding.Empty, BackColor = panel,
+            Padding = new Padding(12, 8, 10, 6)
+        };
         detail.Dock = DockStyle.Fill;
         detail.ForeColor = muted;
-        detail.Text = "Select a connection, then click EXPLAIN for Simple/Advanced analysis, or INSPECT for process properties.";
+        detail.AutoEllipsis = true;
+        detail.Text = "Select a connection, then EXPLAIN for Simple/Advanced details.";
         bottom.Controls.Add(detail);
-        page.Controls.Add(grid);
-        page.Controls.Add(bottom);
+        pageLayout.Controls.Add(bottom, 0, 2);
         return page;
     }
 
