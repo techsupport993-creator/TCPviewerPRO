@@ -72,6 +72,7 @@ public sealed partial class MainForm
             WrapContents = false, Padding = new Padding(15), BackColor = bg
         };
         page.Controls.Add(scroll);
+        BuildAppModeSettingsSection(scroll);
         scroll.Controls.Add(new Label
         {
             Text = "APPLICATION THEME", Font = new Font("Segoe UI Semibold", 17F),
