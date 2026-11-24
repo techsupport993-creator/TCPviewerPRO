@@ -87,6 +87,72 @@ Assert(endpoint == SecurityGuards.EndpointIdentity("TCP", 1234, "192.168.1.10", 
 Assert(endpoint != SecurityGuards.EndpointIdentity("TCP", 1234, "192.168.1.10", 50124, "1.1.1.1", 443),
     "changed local port creates a separate endpoint");
 
+
+﻿// Connection Investigator v6.7.0: deterministic explanations, evidence, and redaction.
+var investigation = new ConnectionInvestigation(
+    "TCP", "ExampleBrowser", 4321,
+    "192.168.0.197", 51555, "203.0.113.40", 443,
+    "ESTABLISHED", "Verified third party", "Example Signer", "Example Company",
+    "Valid", @"Inspected at C:\Users\TestUser\AppData\Local\Example",
+    @"C:\Users\TestUser\Apps\browser.exe",
+    new DateTime(2026, 11, 23, 20, 0, 0, DateTimeKind.Utc),
+    new DateTime(2026, 11, 23, 20, 10, 0),
+    new DateTime(2026, 11, 23, 20, 5, 0));
+var investigationDetails = new InvestigationProcessDetails(
+    "31", @"C:\Users\TestUser\Apps\browser.exe --user-data-dir=C:\Users\TestUser\Private",
+    "2026-11-23 20:00:00", new string('F', 64), "Identity verified");
+
+Assert(ConnectionInvestigatorService.HasRemotePeer(investigation), "TCP remote endpoint detected");
+Assert(ConnectionInvestigatorService.AddressType(investigation) == "Reserved or special-purpose address",
+    "special-purpose IP is not described as a normal public host");
+Assert(ConnectionInvestigatorService.Explain(investigation).Contains("Port 443") &&
+       ConnectionInvestigatorService.Explain(investigation).Contains("does not prove"),
+    "HTTPS hint avoids assuming verified secure traffic");
+Assert(ConnectionInvestigatorService.ExplainSignature(investigation).Contains("revocation was not checked"),
+    "verified signature is qualified as an offline check");
+Assert(ConnectionInvestigatorService.Endpoint("fe80::1%3", 8080) == "[fe80::1%3]:8080",
+    "scoped IPv6 endpoints use readable bracket formatting");
+Assert(ConnectionInvestigatorService.Endpoint("192.168.1.1", 443) == "192.168.1.1:443",
+    "IPv4 endpoint formatting stays readable");
+
+var redactedInvestigation = ConnectionInvestigatorService.FormatReport(investigation, investigationDetails, true);
+Assert(redactedInvestigation.Contains("Local endpoint: [REDACTED]") &&
+       redactedInvestigation.Contains("Remote endpoint: [REDACTED]") &&
+       redactedInvestigation.Contains("Executable path: [REDACTED]") &&
+       redactedInvestigation.Contains("Command line: [REDACTED]"),
+    "sharing mode redacts both endpoints, executable path and command line");
+Assert(!redactedInvestigation.Contains("192.168.0.197") &&
+       !redactedInvestigation.Contains("203.0.113.40") &&
+       !redactedInvestigation.Contains("TestUser") &&
+       !redactedInvestigation.Contains("--user-data-dir") &&
+       !redactedInvestigation.Contains(@"C:\Users\"),
+    "sharing mode does not leak private IPs, username or path in raw signature details");
+Assert(redactedInvestigation.Contains("first seen in this app session"),
+    "first observed is accurately scoped to the current session");
+
+var fullInvestigation = ConnectionInvestigatorService.FormatReport(investigation, investigationDetails, false);
+Assert(fullInvestigation.Contains("192.168.0.197:51555") &&
+       fullInvestigation.Contains("203.0.113.40:443") &&
+       fullInvestigation.Contains("TestUser"),
+    "local advanced mode includes original evidence only when unredacted");
+Assert(fullInvestigation.Contains("not a security verdict", StringComparison.OrdinalIgnoreCase),
+    "reports explicitly avoid malware verdicts");
+
+var boundUdp = investigation with
+{
+    Protocol = "UDP", RemoteAddress = "0.0.0.0", RemotePort = 0, State = "BOUND"
+};
+Assert(!ConnectionInvestigatorService.HasRemotePeer(boundUdp),
+    "bound UDP socket is not mistaken for an active remote connection");
+Assert(ConnectionInvestigatorService.Explain(boundUdp).Contains("without a remote peer"),
+    "bound UDP explanation does not imply outbound traffic");
+Assert(ConnectionInvestigatorService.FormatReport(boundUdp, null, true).Contains("Remote endpoint: None reported"),
+    "no remote endpoint displays an accurate neutral statement");
+
+var localLoopback = investigation with { RemoteAddress = "127.0.0.1", RemotePort = 60000 };
+Assert(ConnectionInvestigatorService.AddressType(localLoopback) == "Loopback (this computer)",
+    "localhost is identified as a connection on the same PC");
+
 Assert(SecurityGuards.IsCriticalWindowsProcess("lsass", @"C:\Windows\System32\lsass.exe"), "LSASS protected");
 Assert(SecurityGuards.IsCriticalWindowsProcess("svchost", @"C:\Windows\System32\svchost.exe"), "svchost protected");
 Assert(SecurityGuards.IsCriticalWindowsProcess("notepad", ""), "inaccessible process identity protected");
