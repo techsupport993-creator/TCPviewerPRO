@@ -86,6 +86,22 @@ public sealed partial class MainForm
             selected.SignatureStatus, selected.SignatureDetail, selected.Path,
             selected.ProcessStartedUtc, DateTime.Now, firstSeen);
 
+        // Freeze related table rows and session history when this window opens.
+        // Events are PID matches only: a reused PID can have older unrelated events.
+        var socketSnapshot = current
+            .Where(x => x.Pid == snapshot.Pid &&
+                (snapshot.ProcessStartedUtc == DateTime.MinValue
+                    ? x.Process.Equals(snapshot.Process, StringComparison.OrdinalIgnoreCase)
+                    : x.ProcessStartedUtc == snapshot.ProcessStartedUtc))
+            .Select(x => new InvestigationSocket(
+                x.Protocol, x.State, x.LocalAddress, x.LocalPort,
+                x.RemoteAddress, x.RemotePort))
+            .ToArray();
+        var eventSnapshot = connectionActivity
+            .Where(x => x.Pid == snapshot.Pid)
+            .Select(x => new InvestigationEvent(x.SeenAt, x.RemoteAddress, x.RemotePort, x.State))
+            .ToArray();
+
         var dialog = new Form
         {
             Text = $"Connection Investigator | {snapshot.Process} | v6.7.0",
@@ -108,8 +124,8 @@ public sealed partial class MainForm
         {
             Dock = DockStyle.Fill, BackColor = bg, ColumnCount = 2, RowCount = 1
         };
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48));
         var title = new Label
         {
             Dock = DockStyle.Fill, Text = "CONNECTION INVESTIGATOR\n" +
@@ -124,8 +140,11 @@ public sealed partial class MainForm
         };
         var simpleMode = Button("SIMPLE", cyan, PaletteFor(activeTheme).DarkButton);
         var advancedMode = Button("ADVANCED", panel2, Color.White);
-        simpleMode.Width = 125;
-        advancedMode.Width = 125;
+        var superMode = Button("SUPER ADVANCED", panel2, Color.White);
+        simpleMode.Width = 112;
+        advancedMode.Width = 120;
+        superMode.Width = 165;
+        modeButtons.Controls.Add(superMode);
         modeButtons.Controls.Add(advancedMode);
         modeButtons.Controls.Add(simpleMode);
         header.Controls.Add(title, 0, 0);
@@ -157,6 +176,9 @@ public sealed partial class MainForm
         };
         advanced.Controls.Add(advancedText);
         advanced.Controls.Add(advancedNote);
+        var (superAdvanced, updateDeepEvidence) = CreateSuperAdvancedView(
+            snapshot, socketSnapshot, eventSnapshot);
+        views.Controls.Add(superAdvanced);
         views.Controls.Add(advanced);
         views.Controls.Add(simple);
         root.Controls.Add(views, 0, 1);
@@ -237,7 +259,11 @@ public sealed partial class MainForm
         root.Controls.Add(footerPanel, 0, 2);
 
         InvestigationProcessDetails? details = null;
-        string ExportText() => ConnectionInvestigatorService.FormatReport(snapshot, details, redact.Checked);
+        int currentMode = 0; // 0 Simple, 1 Advanced, 2 Super Advanced
+        string ExportText() => currentMode == 2
+            ? ConnectionInvestigatorForensics.FormatDeepReport(
+                snapshot, details, socketSnapshot, eventSnapshot, redact.Checked)
+            : ConnectionInvestigatorService.FormatReport(snapshot, details, redact.Checked);
 
         bool ConfirmUnredacted()
         {
@@ -286,18 +312,24 @@ public sealed partial class MainForm
         openProcess.Click += (_, _) => OpenProcessInspector(selected);
         close.Click += (_, _) => dialog.Close();
 
-        void SelectMode(bool showAdvanced)
+        void SelectMode(int mode)
         {
-            simple.Visible = !showAdvanced;
-            advanced.Visible = showAdvanced;
-            (showAdvanced ? advanced : simple).BringToFront();
-            simpleMode.BackColor = showAdvanced ? panel2 : cyan;
-            simpleMode.ForeColor = showAdvanced ? Color.White : PaletteFor(activeTheme).DarkButton;
-            advancedMode.BackColor = showAdvanced ? cyan : panel2;
-            advancedMode.ForeColor = showAdvanced ? PaletteFor(activeTheme).DarkButton : Color.White;
+            currentMode = mode;
+            simple.Visible = mode == 0;
+            advanced.Visible = mode == 1;
+            superAdvanced.Visible = mode == 2;
+            (mode == 0 ? simple : mode == 1 ? advanced : superAdvanced).BringToFront();
+            var modeChoices = new[] { simpleMode, advancedMode, superMode };
+            for (int i = 0; i < modeChoices.Length; i++)
+            {
+                modeChoices[i].BackColor = i == mode ? cyan : panel2;
+                modeChoices[i].ForeColor = i == mode
+                    ? PaletteFor(activeTheme).DarkButton : Color.White;
+            }
         }
-        simpleMode.Click += (_, _) => SelectMode(false);
-        advancedMode.Click += (_, _) => SelectMode(true);
+        simpleMode.Click += (_, _) => SelectMode(0);
+        advancedMode.Click += (_, _) => SelectMode(1);
+        superMode.Click += (_, _) => SelectMode(2);
         dialog.KeyDown += (_, e) =>
         {
             if (e.KeyCode != Keys.Escape) return;
@@ -305,7 +337,7 @@ public sealed partial class MainForm
             e.Handled = true;
         };
         advancedText.Text = ConnectionInvestigatorService.FormatReport(snapshot, details, false);
-        SelectMode(false);
+        SelectMode(0);
 
         openInspectorDialogs.Add(dialog);
         dialog.FormClosed += (_, _) => openInspectorDialogs.Remove(dialog);
@@ -320,6 +352,7 @@ public sealed partial class MainForm
                 if (dialog.IsDisposed || advancedText.IsDisposed) return;
                 details = result;
                 advancedText.Text = ConnectionInvestigatorService.FormatReport(snapshot, details, false);
+                updateDeepEvidence(details);
             }
             catch (Exception)
             {
@@ -328,6 +361,7 @@ public sealed partial class MainForm
                     details = new("Unavailable", "Unavailable", "Unavailable", "Unavailable",
                         "Unexpected error while reading live process details.");
                     advancedText.Text = ConnectionInvestigatorService.FormatReport(snapshot, details, false);
+                    updateDeepEvidence(details);
                 }
             }
         }
