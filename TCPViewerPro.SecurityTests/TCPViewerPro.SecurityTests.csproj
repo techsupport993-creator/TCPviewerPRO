@@ -9,6 +9,7 @@
     <Compile Include="../TCPViewerPro/SecurityGuards.cs" Link="SecurityGuards.cs" />
     <Compile Include="../TCPViewerPro/ConnectionInvestigatorService.cs" Link="ConnectionInvestigatorService.cs" />
     <Compile Include="../TCPViewerPro/ConnectionInvestigatorForensics.cs" Link="ConnectionInvestigatorForensics.cs" />
+    <Compile Include="../TCPViewerPro/AppModeProfile.cs" Link="AppModeProfile.cs" />
     <Compile Include="../TCPViewerPro/UpdateInstanceGuard.cs" Link="UpdateInstanceGuard.cs" />
     <Compile Include="../TCPViewerPro/NetworkDiagnosticsService.cs" Link="NetworkDiagnosticsService.cs" />
     <Compile Include="../TCPViewerPro/NetworkHealthService.cs" Link="NetworkHealthService.cs" />
