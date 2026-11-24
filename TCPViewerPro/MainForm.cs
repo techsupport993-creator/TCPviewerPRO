@@ -471,13 +471,14 @@ public sealed partial class MainForm : Form
 
             // Advanced Mode makes DNS a one-click action when there is room;
             // MORE ACTIONS retains the same command at narrower widths.
-            quickDns.Visible = advancedAppMode && bar.ClientSize.Width >= 1080;
+            bool showQuickDns = advancedAppMode && bar.ClientSize.Width >= 1080;
+            quickDns.Visible = showQuickDns;
             int nextX = 14;
             foreach (var control in toolbarButtons)
             {
                 control.Left = nextX;
                 control.Top = 60;
-                if (control != quickDns || quickDns.Visible)
+                if (control != quickDns || showQuickDns)
                     nextX = control.Right + 8;
             }
             // The same toggle remains available under MORE ACTIONS at narrow widths.
