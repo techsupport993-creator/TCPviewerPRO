@@ -153,6 +153,44 @@ var localLoopback = investigation with { RemoteAddress = "127.0.0.1", RemotePort
 Assert(ConnectionInvestigatorService.AddressType(localLoopback) == "Loopback (this computer)",
     "localhost is identified as a connection on the same PC");
 
+
+// Super Advanced: aggregate process-owned socket rows and session-only observations.
+var socketRows = new[]
+{
+    new InvestigationSocket("TCP", "ESTABLISHED", "192.168.4.3", 52212, "1.1.1.1", 443),
+    new InvestigationSocket("TCP", "ESTABLISHED", "192.168.4.3", 52214, "1.1.1.1", 443),
+    new InvestigationSocket("TCP", "LISTENING", "0.0.0.0", 80, "0.0.0.0", 0),
+    new InvestigationSocket("UDP", "BOUND", "fe80::1%7", 5353, "::", 0),
+};
+var observedRows = new[]
+{
+    new InvestigationEvent(new DateTime(2026, 11, 23, 20, 10, 0), "8.8.8.8", 443, "ESTABLISHED"),
+    new InvestigationEvent(new DateTime(2026, 11, 23, 20, 11, 0), "203.0.113.88", 443, "TIME-WAIT")
+};
+var socketStats = ConnectionInvestigatorForensics.Summarize(socketRows, observedRows);
+Assert(socketStats.EndpointCount == 4 && socketStats.TcpCount == 3 && socketStats.UdpCount == 1,
+    "Super Advanced categorizes captured TCP and UDP sockets");
+Assert(socketStats.EstablishedCount == 2 && socketStats.ListeningCount == 1 &&
+       socketStats.UniqueRemoteAddresses == 1 && socketStats.Ipv6Count == 1,
+    "Super Advanced counts states, unique remote addresses and IPv6 without counting listeners as peers");
+Assert(socketStats.ObservationCount == 2,
+    "Super Advanced reports number of session observations without inventing timing");
+var safeDeep = ConnectionInvestigatorForensics.FormatDeepReport(investigation, investigationDetails,
+    socketRows, observedRows, redactSensitive: true);
+Assert(safeDeep.Contains("SUPER ADVANCED / PROCESS SOCKET SNAPSHOT") &&
+       safeDeep.Contains("Endpoints: 4") && safeDeep.Contains("SESSION OBSERVATIONS FOR SAME PID"),
+    "Super Advanced produces a useful detailed technician report");
+Assert(!safeDeep.Contains("192.168.4.3") && !safeDeep.Contains("1.1.1.1") &&
+       !safeDeep.Contains("8.8.8.8") && !safeDeep.Contains("203.0.113.88") &&
+       !safeDeep.Contains("fe80::1") && !safeDeep.Contains("TestUser"),
+    "Super Advanced share-safe report does not leak addresses or usernames");
+var rawDeep = ConnectionInvestigatorForensics.FormatDeepReport(investigation, investigationDetails,
+    socketRows, observedRows, redactSensitive: false);
+Assert(rawDeep.Contains("192.168.4.3:52212") && rawDeep.Contains("[fe80::1%7]:5353") &&
+       rawDeep.Contains("8.8.8.8:443"), "unredacted technician report contains captured socket and event details");
+Assert(rawDeep.Contains("PID-matched historical events can belong to another process after PID reuse"),
+    "session observations clearly warn about PID reuse");
+
 Assert(SecurityGuards.IsCriticalWindowsProcess("lsass", @"C:\Windows\System32\lsass.exe"), "LSASS protected");
 Assert(SecurityGuards.IsCriticalWindowsProcess("svchost", @"C:\Windows\System32\svchost.exe"), "svchost protected");
 Assert(SecurityGuards.IsCriticalWindowsProcess("notepad", ""), "inaccessible process identity protected");
