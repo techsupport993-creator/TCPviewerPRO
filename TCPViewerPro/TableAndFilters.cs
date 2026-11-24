@@ -35,6 +35,12 @@ public sealed partial class MainForm
     {
         public Dictionary<string, ColumnLayout> Connections { get; set; } = new();
         public Dictionary<string, ColumnLayout> Processes { get; set; } = new();
+        // Independent per-mode layouts prevent the app-wide mode switch from
+        // destroying a user's preferred columns, widths, or sort order.
+        public Dictionary<string, ColumnLayout> StandardConnections { get; set; } = new();
+        public Dictionary<string, ColumnLayout> AdvancedConnections { get; set; } = new();
+        public Dictionary<string, ColumnLayout> StandardProcesses { get; set; } = new();
+        public Dictionary<string, ColumnLayout> AdvancedProcesses { get; set; } = new();
         public bool GroupByProcess { get; set; }
     }
 
@@ -60,10 +66,44 @@ public sealed partial class MainForm
     {
         var saved = ReadTableLayoutSettings();
         groupByProcess = saved.GroupByProcess;
-        // Existing users keep every saved column preference. Fresh installs
-        // start with useful investigation fields instead of 13 wide columns.
-        if (saved.Connections is { Count: > 0 }) RestoreColumns(grid, saved.Connections);
-        else ApplyRecommendedConnectionLayout();
+        RestoreConnectionLayoutForMode(saved);
+    }
+
+    private void RestoreConnectionLayoutForMode(TableLayoutSettings saved)
+    {
+        if (advancedAppMode)
+        {
+            if (saved.AdvancedConnections is { Count: > 0 })
+                RestoreColumns(grid, saved.AdvancedConnections);
+            else ApplyAdvancedConnectionLayout();
+        }
+        else if (saved.StandardConnections is { Count: > 0 })
+            RestoreColumns(grid, saved.StandardConnections);
+        else if (saved.Connections is { Count: > 0 })
+            // One-time compatibility for v6.6/v6.7 legacy layouts.
+            RestoreColumns(grid, saved.Connections);
+        else
+            ApplyRecommendedConnectionLayout();
+    }
+
+    private void RestoreAppModeGridLayouts()
+    {
+        var saved = ReadTableLayoutSettings();
+        RestoreConnectionLayoutForMode(saved);
+        RestoreProcessLayoutForMode(saved);
+        grid.Columns["Group"].Visible = groupByProcess;
+    }
+
+    private void ApplyAdvancedConnectionLayout()
+    {
+        ApplyRecommendedConnectionLayout();
+        foreach (DataGridViewColumn column in grid.Columns)
+            column.Visible = column.Name != "Group" || groupByProcess;
+        grid.Columns["Signer"].Width = 190;
+        grid.Columns["Company"].Width = 180;
+        grid.Columns["LocalAddress"].Width = 165;
+        grid.Columns["LocalPort"].Width = 80;
+        grid.Columns["Path"].Width = 300;
     }
 
     private void ApplyRecommendedConnectionLayout()
@@ -103,7 +143,34 @@ public sealed partial class MainForm
         finally { grid.ResumeLayout(true); }
     }
 
-    private void RestoreProcessGridLayout() => RestoreColumns(processGrid, ReadTableLayoutSettings().Processes);
+    private void RestoreProcessGridLayout() => RestoreProcessLayoutForMode(ReadTableLayoutSettings());
+
+    private void RestoreProcessLayoutForMode(TableLayoutSettings saved)
+    {
+        if (advancedAppMode)
+        {
+            if (saved.AdvancedProcesses is { Count: > 0 })
+                RestoreColumns(processGrid, saved.AdvancedProcesses);
+            else ApplyAdvancedProcessLayout();
+        }
+        else if (saved.StandardProcesses is { Count: > 0 })
+            RestoreColumns(processGrid, saved.StandardProcesses);
+        else if (saved.Processes is { Count: > 0 })
+            RestoreColumns(processGrid, saved.Processes);
+        else ApplyStandardProcessLayout();
+    }
+
+    private void ApplyStandardProcessLayout()
+    {
+        foreach (DataGridViewColumn column in processGrid.Columns)
+            column.Visible = column.Name is not ("company" or "path");
+    }
+
+    private void ApplyAdvancedProcessLayout()
+    {
+        foreach (DataGridViewColumn column in processGrid.Columns)
+            column.Visible = true;
+    }
 
     private static void RestoreColumns(DataGridView view, Dictionary<string, ColumnLayout>? saved)
     {
@@ -153,12 +220,27 @@ public sealed partial class MainForm
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(TableLayoutPath)!);
-            var data = new TableLayoutSettings
+            var data = ReadTableLayoutSettings();
+            // Preserve settings from earlier releases as the default Standard
+            // layout before a user creates their first Advanced layout.
+            if (data.StandardConnections.Count == 0 && data.Connections.Count > 0)
+                data.StandardConnections = data.Connections;
+            if (data.StandardProcesses.Count == 0 && data.Processes.Count > 0)
+                data.StandardProcesses = data.Processes;
+
+            var connectionColumns = CaptureColumns(grid);
+            var processColumns = CaptureColumns(processGrid);
+            if (advancedAppMode)
             {
-                Connections = CaptureColumns(grid),
-                Processes = CaptureColumns(processGrid),
-                GroupByProcess = groupByProcess
-            };
+                data.AdvancedConnections = connectionColumns;
+                data.AdvancedProcesses = processColumns;
+            }
+            else
+            {
+                data.StandardConnections = connectionColumns;
+                data.StandardProcesses = processColumns;
+            }
+            data.GroupByProcess = groupByProcess;
             File.WriteAllText(TableLayoutPath, JsonSerializer.Serialize(data,
                 new JsonSerializerOptions { WriteIndented = true }));
         }
@@ -189,6 +271,11 @@ public sealed partial class MainForm
         menu.Items.Add("Recommended compact layout", null, (_, _) =>
         {
             ApplyRecommendedConnectionLayout();
+            ScheduleGridLayoutSave();
+        });
+        menu.Items.Add("Advanced technician columns", null, (_, _) =>
+        {
+            ApplyAdvancedConnectionLayout();
             ScheduleGridLayoutSave();
         });
         menu.Items.Add("Show all columns (wide table)", null, (_, _) =>
