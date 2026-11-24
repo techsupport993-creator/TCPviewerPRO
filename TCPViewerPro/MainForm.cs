@@ -133,7 +133,7 @@ public sealed partial class MainForm : Form
 
         var workspace = new Panel { Dock = DockStyle.Fill, BackColor = bg };
         navPanel.Dock = DockStyle.Left;
-        navPanel.Width = 198;
+        navPanel.Width = 208;
         navPanel.BackColor = panel;
         navPanel.Padding = new Padding(7, 9, 3, 8);
         navPanel.AutoScroll = true;
@@ -616,12 +616,13 @@ public sealed partial class MainForm : Form
     void ConfigureGrid(DataGridView g)
     {
         g.BackgroundColor=bg;g.BorderStyle=BorderStyle.None;g.GridColor=PaletteFor(activeTheme).GridLine;
-        g.EnableHeadersVisualStyles=false;g.ColumnHeadersDefaultCellStyle.BackColor=panel2;g.ColumnHeadersDefaultCellStyle.ForeColor=cyan;g.ColumnHeadersDefaultCellStyle.Font=new Font("Consolas",8.5F,FontStyle.Bold);
+        g.EnableHeadersVisualStyles=false;g.ColumnHeadersDefaultCellStyle.BackColor=panel2;g.ColumnHeadersDefaultCellStyle.ForeColor=cyan;g.ColumnHeadersDefaultCellStyle.Font=new Font("Segoe UI Semibold",9F);g.ColumnHeadersDefaultCellStyle.Padding=new Padding(7,0,3,0);
         g.DefaultCellStyle.BackColor=panel;g.DefaultCellStyle.ForeColor=Color.Gainsboro;g.DefaultCellStyle.SelectionBackColor=PaletteFor(activeTheme).SelectedRow;g.DefaultCellStyle.SelectionForeColor=Color.White;
+        g.DefaultCellStyle.Padding = new Padding(6,0,3,0);
         g.AlternatingRowsDefaultCellStyle.BackColor=PaletteFor(activeTheme).AlternateRow;
         g.AutoGenerateColumns=false;g.RowHeadersVisible=false;g.AllowUserToAddRows=false;g.AllowUserToDeleteRows=false;g.ReadOnly=true;g.SelectionMode=DataGridViewSelectionMode.FullRowSelect;g.MultiSelect=false;g.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.None;g.Dock=DockStyle.Fill;
-        g.ColumnHeadersHeight = 32;
-        g.RowTemplate.Height = 27;
+        g.ColumnHeadersHeight = 37;
+        g.RowTemplate.Height = 30;
         g.AllowUserToResizeRows = false;
         // Prevent modal error dialogs if a Windows data binding conversion fails;
         // the actual underlying type conversion is handled by the framework.
