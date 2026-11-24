@@ -24,6 +24,30 @@ See the application's live connection monitor, Network Diagnostics, and About pa
 
 ![TCP Viewer Pro v6.6.3 application screenshot 3](docs/screenshots/ChatGPT%20Image%20Nov%2023%2C%202026%2C%2008_54_03%20PM-3.png)
 
+## In development: v6.7.0 Connection Investigator
+
+The v6.7.0 feature branch adds a **local-only, read-only Connection Investigator**. The official downloadable release is **still v6.6.3** until the new feature passes Windows testing and is explicitly published.
+
+Select a row in **LIVE CONNECTIONS** and choose **EXPLAIN** (or right-click the row → **Explain connection (Simple / Advanced)**, or press **Ctrl+I**).
+
+- **Simple mode (default):** plain-English explanation of the selected TCP/UDP endpoint, whether a remote peer is actually present, address classification, cautious port hints, offline publisher-signature context, and suggested follow-up checks.
+- **Advanced mode:** capture-time protocol, addresses, ports, process/PID, TCP state, signer, executable metadata, and (if the current process still matches its captured PID/name/path/start time) parent PID, command line and an on-disk executable SHA-256 hash.
+- **Shareable report:** copy or save a UTF-8 text report. **Redaction is enabled by default** and hides local/remote endpoint addresses, executable paths, command lines, and potentially sensitive signature details. An explicit warning appears before copying or saving with redaction disabled.
+- **First observed:** if a matching endpoint was observed by the current session history, the report marks the first observation **in this app session**, not the actual time the connection started.
+- **Safety/privacy:** no online reputation requests, new background connections, passive packet capture, automated process termination, firewall changes, or AI malware verdicts. The selected snapshot remains stable even as the live monitor refreshes.
+- **Limitations:** port and address classification are descriptive only; code signing is not a safety guarantee. A file's on-disk hash is not necessarily a hash of the running executable in memory.
+
+### v6.7.0 manual smoke-test checklist
+
+1. Select a TCP ESTABLISHED connection and click **EXPLAIN**. Switch Simple ↔ Advanced several times; confirm neither action changes the live connection.
+2. Select TCP LISTENING and UDP BOUND endpoints. Simple Mode must **not** call those outbound network connections.
+3. Copy and save the report with redaction checked. Verify it contains no local/remote IP addresses, executable paths, usernames, command-line arguments, or raw signature details.
+4. Uncheck redaction. Confirm a warning appears before any copy/save; Cancel must avoid sharing data.
+5. Verify local/loopback/special-purpose IPv4/IPv6 explanations, large executable paths and missing or access-denied process metadata.
+6. Close the process while investigation is open. The app must remain stable and avoid mixing details from a reused PID.
+7. Test keyboard shortcut **Ctrl+I**, right-click menu, window resizing, and all three themes. Open several inspector windows and switch application theme.
+8. Open the public v6.6.3 EXE separately and verify that the new feature has not modified the existing released binary.
+
 ## Features
 
 - Live IPv4/IPv6 TCP and UDP endpoints with owning-process PIDs
