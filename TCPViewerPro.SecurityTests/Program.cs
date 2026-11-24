@@ -9,6 +9,26 @@ void Assert(bool condition, string scenario)
     passed++;
 }
 
+// Global Standard/Advanced App Mode is opt-in, persisted and safe on invalid JSON.
+Assert(AppModeProfile.Normalize("Advanced") == AppModeProfile.Advanced,
+    "Advanced app mode is recognized");
+Assert(AppModeProfile.Normalize("ADVANCED") == AppModeProfile.Advanced,
+    "Advanced app mode normalizes case");
+Assert(AppModeProfile.Normalize("Super Advanced") == AppModeProfile.Standard,
+    "unknown app-wide mode falls back to Standard");
+Assert(!AppModeProfile.IsAdvanced(null) && !AppModeProfile.IsAdvanced(""),
+    "missing app-wide setting stays Standard");
+Assert(AppModeProfile.FromJson("{\\\"Mode\\\":\\\"Advanced\\\"}").Mode == AppModeProfile.Advanced,
+    "saved Advanced app mode reloads after startup");
+Assert(AppModeProfile.FromJson("{\\\"Mode\\\":\\\"Invalid\\\"}").Mode == AppModeProfile.Standard,
+    "invalid saved mode does not enable Advanced");
+Assert(AppModeProfile.FromJson("{not-json}").Mode == AppModeProfile.Standard,
+    "corrupt app-mode settings use safe defaults");
+var appModeJson = System.Text.Json.JsonSerializer.Serialize(
+    new AppModePreferences { Mode = AppModeProfile.Advanced });
+Assert(AppModeProfile.FromJson(appModeJson).Mode == AppModeProfile.Advanced,
+    "Advanced mode preference survives JSON round trip");
+
 string repo = "techsupport993-creator/TCPviewerPRO";
 string tag = "v6.4.2";
 string exe = $"https://github.com/{repo}/releases/download/{tag}/TCPViewerPro.exe";
