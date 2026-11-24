@@ -60,7 +60,47 @@ public sealed partial class MainForm
     {
         var saved = ReadTableLayoutSettings();
         groupByProcess = saved.GroupByProcess;
-        RestoreColumns(grid, saved.Connections);
+        // Existing users keep every saved column preference. Fresh installs
+        // start with useful investigation fields instead of 13 wide columns.
+        if (saved.Connections is { Count: > 0 }) RestoreColumns(grid, saved.Connections);
+        else ApplyRecommendedConnectionLayout();
+    }
+
+    private void ApplyRecommendedConnectionLayout()
+    {
+        var order = new[]
+        {
+            "Group", "Process", "Pid", "Protocol", "RemoteAddress",
+            "RemotePort", "State", "PublisherCategory",
+            "LocalAddress", "LocalPort", "Signer", "Company", "Path"
+        };
+        var visible = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Process", "Pid", "Protocol", "RemoteAddress", "RemotePort",
+            "State", "PublisherCategory"
+        };
+        if (groupByProcess) visible.Add("Group");
+
+        var widths = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Group"] = 146, ["Process"] = 150, ["Pid"] = 65,
+            ["Protocol"] = 85, ["RemoteAddress"] = 155, ["RemotePort"] = 90,
+            ["State"] = 122, ["PublisherCategory"] = 160
+        };
+        grid.SuspendLayout();
+        try
+        {
+            // Set a stable order before hiding optional technical columns.
+            for (int i = 0; i < order.Length; i++)
+                grid.Columns[order[i]].DisplayIndex = i;
+            foreach (DataGridViewColumn column in grid.Columns)
+            {
+                column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                if (widths.TryGetValue(column.Name, out int width)) column.Width = width;
+                column.Visible = visible.Contains(column.Name);
+            }
+        }
+        finally { grid.ResumeLayout(true); }
     }
 
     private void RestoreProcessGridLayout() => RestoreColumns(processGrid, ReadTableLayoutSettings().Processes);
@@ -146,7 +186,12 @@ public sealed partial class MainForm
             menu.Items.Add(item);
         }
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Reset table columns", null, (_, _) =>
+        menu.Items.Add("Recommended compact layout", null, (_, _) =>
+        {
+            ApplyRecommendedConnectionLayout();
+            ScheduleGridLayoutSave();
+        });
+        menu.Items.Add("Show all columns (wide table)", null, (_, _) =>
         {
             int width = 138;
             foreach (DataGridViewColumn c in grid.Columns)
