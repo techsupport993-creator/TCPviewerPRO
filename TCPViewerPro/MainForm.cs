@@ -287,7 +287,7 @@ public sealed partial class MainForm : Form
     {
         var page = Page("CONNECTIONS");
         var bar = new Panel { Dock = DockStyle.Top, Height = 95, BackColor = panel,
-            Padding = new Padding(10, 7, 6, 6), AutoScroll = true, AutoScrollMinSize = new Size(1080, 90) };
+            Padding = new Padding(10, 7, 6, 6), AutoScroll = true, AutoScrollMinSize = new Size(1235, 90) };
         search.Width = 205;
         search.Location = new Point(10, 8);
         search.PlaceholderText = "Search process, IP, port, company…";
@@ -335,7 +335,12 @@ public sealed partial class MainForm : Form
         group.CheckedChanged += (_, _) => { groupByProcess = group.Checked; ApplyFilter(); ScheduleGridLayoutSave(); };
         var columns = Button("COLUMNS", cyan, bg); columns.Left = 945; columns.Top = 45; columns.Width = 110;
         columns.Click += (_, _) => ShowColumnMenu(columns);
-        bar.Controls.AddRange(new Control[] { search, filter, publisherFilterBox, rate, visibleCount, export, dns, close, block, kill, inspect, group, columns });
+        var explain = Button("EXPLAIN", green, PaletteFor(activeTheme).DarkButton);
+        explain.Left = 1067; explain.Top = 45; explain.Width = 125;
+        explain.Click += (_, _) => InvestigateSelectedConnection();
+        new ToolTip().SetToolTip(explain,
+            "Open the read-only Simple/Advanced Connection Investigator for the selected endpoint.");
+        bar.Controls.AddRange(new Control[] { search, filter, publisherFilterBox, rate, visibleCount, export, dns, close, block, kill, inspect, group, columns, explain });
         page.Controls.Add(bar);
 
         ConfigureGrid(grid);
@@ -382,7 +387,7 @@ public sealed partial class MainForm : Form
         var bottom = new Panel { Dock = DockStyle.Bottom, Height = 44, BackColor = panel, Padding = new Padding(10, 8, 10, 5) };
         detail.Dock = DockStyle.Fill;
         detail.ForeColor = muted;
-        detail.Text = "Select a connection to inspect details. Double-click for process properties.";
+        detail.Text = "Select a connection, then click EXPLAIN for Simple/Advanced analysis, or INSPECT for process properties.";
         bottom.Controls.Add(detail);
         page.Controls.Add(grid);
         page.Controls.Add(bottom);
