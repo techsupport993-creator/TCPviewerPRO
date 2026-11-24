@@ -33,6 +33,8 @@ public sealed partial class MainForm : Form
     readonly ToolStripStatusLabel footer = new("Ready");
     readonly FlowLayoutPanel navPanel = new();
     readonly List<Button> navButtons = new();
+    readonly List<Button> plannedNavButtons = new();
+    bool plannedNavExpanded;
     Button? pauseButton;
     bool monitoringPaused;
     readonly Dictionary<string, Color> connectionColors = DefaultConnectionColors();
@@ -131,9 +133,9 @@ public sealed partial class MainForm : Form
 
         var workspace = new Panel { Dock = DockStyle.Fill, BackColor = bg };
         navPanel.Dock = DockStyle.Left;
-        navPanel.Width = 213;
+        navPanel.Width = 198;
         navPanel.BackColor = panel;
-        navPanel.Padding = new Padding(8, 10, 5, 8);
+        navPanel.Padding = new Padding(7, 9, 3, 8);
         navPanel.AutoScroll = true;
         navPanel.FlowDirection = FlowDirection.TopDown;
         navPanel.WrapContents = false;
@@ -141,8 +143,8 @@ public sealed partial class MainForm : Form
         {
             Text = "WORKSPACE", ForeColor = cyan,
             Font = new Font("Consolas", 9F, FontStyle.Bold),
-            Width = 185, Height = 32, TextAlign = ContentAlignment.MiddleLeft,
-            Margin = new Padding(5, 0, 0, 7)
+            Width = 171, Height = 28, TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(4, 0, 0, 5)
         };
         navPanel.Controls.Add(navTitle);
         AddNavButton("LIVE CONNECTIONS", 0);
@@ -151,15 +153,16 @@ public sealed partial class MainForm : Form
         AddNavButton("CONNECTION HISTORY", 3);
         AddNavSection("DIAGNOSTIC TOOLS");
         AddNavButton("NETWORK DIAGNOSTICS", 10);
-        AddNavSection("PLANNED MODULES");
-        AddNavButton("ETW MONITOR", 4);
-        AddNavButton("BANDWIDTH", 5);
-        AddNavButton("FIREWALL MANAGER", 6);
-        AddNavButton("PORT SCANNER", 7);
-        AddNavButton("IP INTELLIGENCE", 8);
-        AddNavButton("DNS MONITOR", 9);
+        AddNavSection("APPLICATION");
         AddNavButton("SETTINGS", 11);
         AddNavButton("ABOUT", 12);
+        AddPlannedNavToggle();
+        AddNavButton("ETW MONITOR", 4, planned: true);
+        AddNavButton("BANDWIDTH", 5, planned: true);
+        AddNavButton("FIREWALL MANAGER", 6, planned: true);
+        AddNavButton("PORT SCANNER", 7, planned: true);
+        AddNavButton("IP INTELLIGENCE", 8, planned: true);
+        AddNavButton("DNS MONITOR", 9, planned: true);
         tabs.SelectedIndexChanged += (_, _) => { UpdateNavSelection(); RenderActivityViews(); };
         workspace.Controls.Add(tabs);
         workspace.Controls.Add(navPanel);
@@ -178,26 +181,54 @@ public sealed partial class MainForm : Form
         var label = new Label
         {
             Text = title, ForeColor = cyan, Font = new Font("Consolas", 8.2F, FontStyle.Bold),
-            Width = 186, Height = 32, TextAlign = ContentAlignment.BottomLeft,
-            Margin = new Padding(5, 14, 0, 6)
+            Width = 169, Height = 29, TextAlign = ContentAlignment.BottomLeft,
+            Margin = new Padding(4, 7, 0, 4)
         };
         navPanel.Controls.Add(label);
     }
 
-    void AddNavButton(string title, int tabIndex)
+    void AddNavButton(string title, int tabIndex, bool planned = false)
     {
         var b = new Button
         {
-            Text = "  " + title, Tag = tabIndex, Width = 185, Height = 35,
+            Text = "  " + title, Tag = tabIndex, Width = 171, Height = 33,
             TextAlign = ContentAlignment.MiddleLeft, FlatStyle = FlatStyle.Flat,
             BackColor = panel, ForeColor = muted, Font = new Font("Segoe UI Semibold", 8.2F),
-            Cursor = Cursors.Hand, Margin = new Padding(2, 1, 0, 1)
+            Cursor = Cursors.Hand, Margin = new Padding(2, 1, 0, 1),
+            Visible = !planned || plannedNavExpanded
         };
         b.FlatAppearance.BorderSize = 0;
         b.FlatAppearance.MouseOverBackColor = panel2;
         b.Click += (_, _) => tabs.SelectedIndex = tabIndex;
         navButtons.Add(b);
         navPanel.Controls.Add(b);
+        if (planned) plannedNavButtons.Add(b);
+    }
+
+    void AddPlannedNavToggle()
+    {
+        var toggle = new Button
+        {
+            Text = "  ▸ PLANNED TOOLS", Width = 171, Height = 34,
+            TextAlign = ContentAlignment.MiddleLeft, FlatStyle = FlatStyle.Flat,
+            BackColor = panel, ForeColor = cyan,
+            Font = new Font("Segoe UI Semibold", 8.4F),
+            Cursor = Cursors.Hand, Margin = new Padding(2, 9, 0, 1)
+        };
+        toggle.FlatAppearance.BorderSize = 0;
+        toggle.FlatAppearance.MouseOverBackColor = panel2;
+        toggle.Click += (_, _) =>
+        {
+            plannedNavExpanded = !plannedNavExpanded;
+            navPanel.SuspendLayout();
+            try
+            {
+                foreach (var button in plannedNavButtons) button.Visible = plannedNavExpanded;
+                toggle.Text = plannedNavExpanded ? "  ▾ PLANNED TOOLS" : "  ▸ PLANNED TOOLS";
+            }
+            finally { navPanel.ResumeLayout(true); }
+        };
+        navPanel.Controls.Add(toggle);
     }
 
     void UpdateNavSelection()
