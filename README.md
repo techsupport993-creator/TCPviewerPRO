@@ -32,6 +32,8 @@ Select a row in **LIVE CONNECTIONS** and choose **EXPLAIN** (or right-click the 
 
 - **Simple mode (default):** plain-English explanation of the selected TCP/UDP endpoint, whether a remote peer is actually present, address classification, cautious port hints, offline publisher-signature context, and suggested follow-up checks.
 - **Advanced mode:** capture-time protocol, addresses, ports, process/PID, TCP state, signer, executable metadata, and (if the current process still matches its captured PID/name/path/start time) parent PID, command line and an on-disk executable SHA-256 hash.
+- **Super Advanced mode:** a third technical workspace with sortable/copyable capture-time socket rows for the selected PID, TCP/UDP and state counters, distinct remote-IP counts, IPv6 overview, session-observed endpoint events (not packet capture), and a deep forensic report. The view labels socket data as a snapshot and warns that historical PID matches may be affected by PID reuse.
+- **Technician report selection:** while Super Advanced is open, **COPY REPORT** and **SAVE REPORT** include its socket and session-observation appendix. Redaction remains enabled by default for all three modes.
 - **Shareable report:** copy or save a UTF-8 text report. **Redaction is enabled by default** and hides local/remote endpoint addresses, executable paths, command lines, and potentially sensitive signature details. An explicit warning appears before copying or saving with redaction disabled.
 - **Cleaner Live Connections layout:** a dedicated filter row and action row, no wide horizontal toolbar scrollbar, larger readable headers, and a consistent table/details region. **EXPLAIN**, **INSPECT**, and **EXPORT CSV** remain immediately visible; DNS lookup and disruptive actions move to **MORE ACTIONS** (with existing confirmations).
 - **Simplified sidebar:** working pages, Settings, and About appear first. Unfinished experimental modules are under a collapsed **PLANNED TOOLS** section to reduce scrolling.
@@ -48,7 +50,9 @@ Select a row in **LIVE CONNECTIONS** and choose **EXPLAIN** (or right-click the 
 4. Uncheck redaction. Confirm a warning appears before any copy/save; Cancel must avoid sharing data.
 5. Verify local/loopback/special-purpose IPv4/IPv6 explanations, large executable paths and missing or access-denied process metadata.
 6. Close the process while investigation is open. The app must remain stable and avoid mixing details from a reused PID.
-7. Test keyboard shortcut **Ctrl+I**, right-click menu, window resizing, and all three themes. Open several inspector windows and switch application theme.
+7. Test all three investigator modes (**SIMPLE**, **ADVANCED**, **SUPER ADVANCED**) on a regular TCP connection, a listening socket, and a UDP endpoint. In Super Advanced, switch between **RELATED SOCKETS**, **SESSION EVENTS**, and **RAW EVIDENCE**; confirm the counters match the captured process and no packet/traffic claims are made.
+8. Save the **Super Advanced** report with redaction ON, and confirm there are no addresses, paths, or command-line private values in either the original fields or the extra socket/event appendix.
+9. Test keyboard shortcut **Ctrl+I**, right-click menu, window resizing, and all three themes. Open several inspector windows and switch application theme.
 8. Test the new toolbar, **MORE ACTIONS**, and **COLUMNS → Recommended compact layout** at 100% and 150% Windows display scaling. Verify that the table headers never disappear under the toolbar, and Settings/About remain easily accessible with PLANNED TOOLS collapsed.
 9. Open the public v6.6.3 EXE separately and verify that the new feature has not modified the existing released binary.
 
