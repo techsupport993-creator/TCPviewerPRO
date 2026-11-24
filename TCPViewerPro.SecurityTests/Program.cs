@@ -18,9 +18,9 @@ Assert(AppModeProfile.Normalize("Super Advanced") == AppModeProfile.Standard,
     "unknown app-wide mode falls back to Standard");
 Assert(!AppModeProfile.IsAdvanced(null) && !AppModeProfile.IsAdvanced(""),
     "missing app-wide setting stays Standard");
-Assert(AppModeProfile.FromJson("{\\\"Mode\\\":\\\"Advanced\\\"}").Mode == AppModeProfile.Advanced,
+Assert(AppModeProfile.FromJson(@"{""Mode"":""Advanced""}").Mode == AppModeProfile.Advanced,
     "saved Advanced app mode reloads after startup");
-Assert(AppModeProfile.FromJson("{\\\"Mode\\\":\\\"Invalid\\\"}").Mode == AppModeProfile.Standard,
+Assert(AppModeProfile.FromJson(@"{""Mode"":""Invalid""}").Mode == AppModeProfile.Standard,
     "invalid saved mode does not enable Advanced");
 Assert(AppModeProfile.FromJson("{not-json}").Mode == AppModeProfile.Standard,
     "corrupt app-mode settings use safe defaults");
