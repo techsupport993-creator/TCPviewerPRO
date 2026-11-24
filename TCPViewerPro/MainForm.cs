@@ -64,6 +64,7 @@ public sealed partial class MainForm : Form
         LoadUpdatePreferences();
         LoadThemeSettings();
         LoadColorSettings();
+        LoadAppModeSettings();
         groupByProcess = ReadTableLayoutSettings().GroupByProcess;
         BuildUi();
         try { Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? Icon; }
@@ -85,7 +86,12 @@ public sealed partial class MainForm : Form
 
         var header = new Panel { Dock = DockStyle.Fill, BackColor = bg };
         var brand = new Label { Text = "TCP VIEWER  /  PRO", Font = new Font("Segoe UI Semibold", 19F), ForeColor = cyan, AutoSize = true, Location = new Point(4, 4) };
-        var subtitle = new Label { Text = "LIVE NETWORK CONNECTION MONITOR", ForeColor = muted, AutoSize = true, Location = new Point(7, 39), Font = new Font("Consolas", 8.5F) };
+        var subtitle = appModeSubtitle;
+        subtitle.ForeColor = muted;
+        subtitle.AutoSize = true;
+        subtitle.Location = new Point(7, 39);
+        subtitle.Font = new Font("Consolas", 8.5F);
+        UpdateAppModeSubtitle();
         header.Controls.Add(brand); header.Controls.Add(subtitle);
         var refresh = Button("REFRESH", cyan, PaletteFor(activeTheme).DarkButton); refresh.Size = new Size(104, 34); refresh.Anchor = AnchorStyles.Top | AnchorStyles.Right; refresh.Click += (_, _) => RefreshData(manual: true);
         pauseButton = Button("PAUSE", Color.FromArgb(255, 190, 90), Color.FromArgb(20, 25, 35)); pauseButton.Size = new Size(104, 34); pauseButton.Anchor = AnchorStyles.Top | AnchorStyles.Right; pauseButton.Click += (_, _) => ToggleMonitoring();
@@ -406,6 +412,11 @@ public sealed partial class MainForm : Form
         export.Width = 112;
         export.Click += (_, _) => ExportCsv();
 
+        var quickDns = Button("DNS LOOKUP", cyan, PaletteFor(activeTheme).DarkButton);
+        quickDns.Width = 122;
+        quickDns.Click += async (_, _) => await LookupSelectedDns();
+        new ToolTip().SetToolTip(quickDns, "Resolve the selected remote address on demand.");
+
         var more = Button("MORE ACTIONS ▾", panel2, Color.White);
         more.Width = 126;
         var moreMenu = new ContextMenuStrip { BackColor = panel2, ForeColor = Color.White };
@@ -447,7 +458,7 @@ public sealed partial class MainForm : Form
         moreMenu.Items.Add(new ToolStripSeparator());
         moreMenu.Items.Add(groupMenu);
 
-        var toolbarButtons = new Control[] { explain, inspect, export, more, columns, group };
+        var toolbarButtons = new Control[] { explain, inspect, export, quickDns, more, columns, group };
         void ArrangeToolbar()
         {
             filter.Location = new Point(search.Right + 10, 12);
@@ -458,12 +469,16 @@ public sealed partial class MainForm : Form
             visibleCount.Width = Math.Max(70, bar.ClientSize.Width - visibleCount.Left - 12);
             visibleCount.Visible = bar.ClientSize.Width >= visibleCount.Left + 115;
 
+            // Advanced Mode makes DNS a one-click action when there is room;
+            // MORE ACTIONS retains the same command at narrower widths.
+            quickDns.Visible = advancedAppMode && bar.ClientSize.Width >= 1080;
             int nextX = 14;
             foreach (var control in toolbarButtons)
             {
                 control.Left = nextX;
                 control.Top = 60;
-                nextX = control.Right + 8;
+                if (control != quickDns || quickDns.Visible)
+                    nextX = control.Right + 8;
             }
             // The same toggle remains available under MORE ACTIONS at narrow widths.
             group.Visible = group.Right + 8 <= bar.ClientSize.Width;
@@ -472,9 +487,10 @@ public sealed partial class MainForm : Form
         bar.Controls.AddRange(new Control[]
         {
             search, filter, publisherFilterBox, rate, visibleCount,
-            explain, inspect, export, more, columns, group
+            explain, inspect, export, quickDns, more, columns, group
         });
         bar.Resize += (_, _) => ArrangeToolbar();
+        updateConnectionToolbarForMode = ArrangeToolbar;
         ArrangeToolbar();
         pageLayout.Controls.Add(bar, 0, 0);
 
