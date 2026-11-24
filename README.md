@@ -33,6 +33,9 @@ Select a row in **LIVE CONNECTIONS** and choose **EXPLAIN** (or right-click the 
 - **Simple mode (default):** plain-English explanation of the selected TCP/UDP endpoint, whether a remote peer is actually present, address classification, cautious port hints, offline publisher-signature context, and suggested follow-up checks.
 - **Advanced mode:** capture-time protocol, addresses, ports, process/PID, TCP state, signer, executable metadata, and (if the current process still matches its captured PID/name/path/start time) parent PID, command line and an on-disk executable SHA-256 hash.
 - **Shareable report:** copy or save a UTF-8 text report. **Redaction is enabled by default** and hides local/remote endpoint addresses, executable paths, command lines, and potentially sensitive signature details. An explicit warning appears before copying or saving with redaction disabled.
+- **Cleaner Live Connections layout:** a dedicated filter row and action row, no wide horizontal toolbar scrollbar, larger readable headers, and a consistent table/details region. **EXPLAIN**, **INSPECT**, and **EXPORT CSV** remain immediately visible; DNS lookup and disruptive actions move to **MORE ACTIONS** (with existing confirmations).
+- **Simplified sidebar:** working pages, Settings, and About appear first. Unfinished experimental modules are under a collapsed **PLANNED TOOLS** section to reduce scrolling.
+- **Compact column view:** fresh setups show the most useful columns. Existing users keep their saved column preferences; choose **COLUMNS → Recommended compact layout** to adopt the new view. **Show all columns (wide table)** is also available.
 - **First observed:** if a matching endpoint was observed by the current session history, the report marks the first observation **in this app session**, not the actual time the connection started.
 - **Safety/privacy:** no online reputation requests, new background connections, passive packet capture, automated process termination, firewall changes, or AI malware verdicts. The selected snapshot remains stable even as the live monitor refreshes.
 - **Limitations:** port and address classification are descriptive only; code signing is not a safety guarantee. A file's on-disk hash is not necessarily a hash of the running executable in memory.
@@ -46,7 +49,8 @@ Select a row in **LIVE CONNECTIONS** and choose **EXPLAIN** (or right-click the 
 5. Verify local/loopback/special-purpose IPv4/IPv6 explanations, large executable paths and missing or access-denied process metadata.
 6. Close the process while investigation is open. The app must remain stable and avoid mixing details from a reused PID.
 7. Test keyboard shortcut **Ctrl+I**, right-click menu, window resizing, and all three themes. Open several inspector windows and switch application theme.
-8. Open the public v6.6.3 EXE separately and verify that the new feature has not modified the existing released binary.
+8. Test the new toolbar, **MORE ACTIONS**, and **COLUMNS → Recommended compact layout** at 100% and 150% Windows display scaling. Verify that the table headers never disappear under the toolbar, and Settings/About remain easily accessible with PLANNED TOOLS collapsed.
+9. Open the public v6.6.3 EXE separately and verify that the new feature has not modified the existing released binary.
 
 ## Features
 
