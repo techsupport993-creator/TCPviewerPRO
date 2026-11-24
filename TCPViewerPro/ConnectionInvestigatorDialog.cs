@@ -337,7 +337,7 @@ public sealed partial class MainForm
             e.Handled = true;
         };
         advancedText.Text = ConnectionInvestigatorService.FormatReport(snapshot, details, false);
-        SelectMode(0);
+        SelectMode(advancedAppMode ? 1 : 0);
 
         openInspectorDialogs.Add(dialog);
         dialog.FormClosed += (_, _) => openInspectorDialogs.Remove(dialog);
