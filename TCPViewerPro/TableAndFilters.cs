@@ -35,6 +35,12 @@ public sealed partial class MainForm
     {
         public Dictionary<string, ColumnLayout> Connections { get; set; } = new();
         public Dictionary<string, ColumnLayout> Processes { get; set; } = new();
+        // Independent per-mode layouts prevent the app-wide mode switch from
+        // destroying a user's preferred columns, widths, or sort order.
+        public Dictionary<string, ColumnLayout> StandardConnections { get; set; } = new();
+        public Dictionary<string, ColumnLayout> AdvancedConnections { get; set; } = new();
+        public Dictionary<string, ColumnLayout> StandardProcesses { get; set; } = new();
+        public Dictionary<string, ColumnLayout> AdvancedProcesses { get; set; } = new();
         public bool GroupByProcess { get; set; }
     }
 
@@ -60,10 +66,111 @@ public sealed partial class MainForm
     {
         var saved = ReadTableLayoutSettings();
         groupByProcess = saved.GroupByProcess;
-        RestoreColumns(grid, saved.Connections);
+        RestoreConnectionLayoutForMode(saved);
     }
 
-    private void RestoreProcessGridLayout() => RestoreColumns(processGrid, ReadTableLayoutSettings().Processes);
+    private void RestoreConnectionLayoutForMode(TableLayoutSettings saved)
+    {
+        if (advancedAppMode)
+        {
+            if (saved.AdvancedConnections is { Count: > 0 })
+                RestoreColumns(grid, saved.AdvancedConnections);
+            else ApplyAdvancedConnectionLayout();
+        }
+        else if (saved.StandardConnections is { Count: > 0 })
+            RestoreColumns(grid, saved.StandardConnections);
+        else if (saved.Connections is { Count: > 0 })
+            // One-time compatibility for v6.6/v6.7 legacy layouts.
+            RestoreColumns(grid, saved.Connections);
+        else
+            ApplyRecommendedConnectionLayout();
+    }
+
+    private void RestoreAppModeGridLayouts()
+    {
+        var saved = ReadTableLayoutSettings();
+        RestoreConnectionLayoutForMode(saved);
+        RestoreProcessLayoutForMode(saved);
+        grid.Columns["Group"].Visible = groupByProcess;
+    }
+
+    private void ApplyAdvancedConnectionLayout()
+    {
+        ApplyRecommendedConnectionLayout();
+        foreach (DataGridViewColumn column in grid.Columns)
+            column.Visible = column.Name != "Group" || groupByProcess;
+        grid.Columns["Signer"].Width = 190;
+        grid.Columns["Company"].Width = 180;
+        grid.Columns["LocalAddress"].Width = 165;
+        grid.Columns["LocalPort"].Width = 80;
+        grid.Columns["Path"].Width = 300;
+    }
+
+    private void ApplyRecommendedConnectionLayout()
+    {
+        var order = new[]
+        {
+            "Group", "Process", "Pid", "Protocol", "RemoteAddress",
+            "RemotePort", "State", "PublisherCategory",
+            "LocalAddress", "LocalPort", "Signer", "Company", "Path"
+        };
+        var visible = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Process", "Pid", "Protocol", "RemoteAddress", "RemotePort",
+            "State", "PublisherCategory"
+        };
+        if (groupByProcess) visible.Add("Group");
+
+        var widths = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Group"] = 146, ["Process"] = 150, ["Pid"] = 65,
+            ["Protocol"] = 85, ["RemoteAddress"] = 155, ["RemotePort"] = 90,
+            ["State"] = 122, ["PublisherCategory"] = 160
+        };
+        grid.SuspendLayout();
+        try
+        {
+            // Set a stable order before hiding optional technical columns.
+            for (int i = 0; i < order.Length; i++)
+                grid.Columns[order[i]].DisplayIndex = i;
+            foreach (DataGridViewColumn column in grid.Columns)
+            {
+                column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                if (widths.TryGetValue(column.Name, out int width)) column.Width = width;
+                column.Visible = visible.Contains(column.Name);
+            }
+        }
+        finally { grid.ResumeLayout(true); }
+    }
+
+    private void RestoreProcessGridLayout() => RestoreProcessLayoutForMode(ReadTableLayoutSettings());
+
+    private void RestoreProcessLayoutForMode(TableLayoutSettings saved)
+    {
+        if (advancedAppMode)
+        {
+            if (saved.AdvancedProcesses is { Count: > 0 })
+                RestoreColumns(processGrid, saved.AdvancedProcesses);
+            else ApplyAdvancedProcessLayout();
+        }
+        else if (saved.StandardProcesses is { Count: > 0 })
+            RestoreColumns(processGrid, saved.StandardProcesses);
+        else if (saved.Processes is { Count: > 0 })
+            RestoreColumns(processGrid, saved.Processes);
+        else ApplyStandardProcessLayout();
+    }
+
+    private void ApplyStandardProcessLayout()
+    {
+        foreach (DataGridViewColumn column in processGrid.Columns)
+            column.Visible = column.Name is not ("company" or "path");
+    }
+
+    private void ApplyAdvancedProcessLayout()
+    {
+        foreach (DataGridViewColumn column in processGrid.Columns)
+            column.Visible = true;
+    }
 
     private static void RestoreColumns(DataGridView view, Dictionary<string, ColumnLayout>? saved)
     {
@@ -113,12 +220,27 @@ public sealed partial class MainForm
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(TableLayoutPath)!);
-            var data = new TableLayoutSettings
+            var data = ReadTableLayoutSettings();
+            // Preserve settings from earlier releases as the default Standard
+            // layout before a user creates their first Advanced layout.
+            if (data.StandardConnections.Count == 0 && data.Connections.Count > 0)
+                data.StandardConnections = data.Connections;
+            if (data.StandardProcesses.Count == 0 && data.Processes.Count > 0)
+                data.StandardProcesses = data.Processes;
+
+            var connectionColumns = CaptureColumns(grid);
+            var processColumns = CaptureColumns(processGrid);
+            if (advancedAppMode)
             {
-                Connections = CaptureColumns(grid),
-                Processes = CaptureColumns(processGrid),
-                GroupByProcess = groupByProcess
-            };
+                data.AdvancedConnections = connectionColumns;
+                data.AdvancedProcesses = processColumns;
+            }
+            else
+            {
+                data.StandardConnections = connectionColumns;
+                data.StandardProcesses = processColumns;
+            }
+            data.GroupByProcess = groupByProcess;
             File.WriteAllText(TableLayoutPath, JsonSerializer.Serialize(data,
                 new JsonSerializerOptions { WriteIndented = true }));
         }
@@ -146,7 +268,17 @@ public sealed partial class MainForm
             menu.Items.Add(item);
         }
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Reset table columns", null, (_, _) =>
+        menu.Items.Add("Recommended compact layout", null, (_, _) =>
+        {
+            ApplyRecommendedConnectionLayout();
+            ScheduleGridLayoutSave();
+        });
+        menu.Items.Add("Advanced technician columns", null, (_, _) =>
+        {
+            ApplyAdvancedConnectionLayout();
+            ScheduleGridLayoutSave();
+        });
+        menu.Items.Add("Show all columns (wide table)", null, (_, _) =>
         {
             int width = 138;
             foreach (DataGridViewColumn c in grid.Columns)

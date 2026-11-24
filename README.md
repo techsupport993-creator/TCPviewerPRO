@@ -24,6 +24,58 @@ See the application's live connection monitor, Network Diagnostics, and About pa
 
 ![TCP Viewer Pro v6.6.3 application screenshot 3](docs/screenshots/ChatGPT%20Image%20Nov%2023%2C%202026%2C%2008_54_03%20PM-3.png)
 
+## In development: application-wide Standard / Advanced Mode
+
+The v6.7.0 test branch adds **SETTINGS → APPLICATION MODE**. Select **STANDARD — Everyday use** or **ADVANCED — IT Technician**. This preference saves under the user's local app settings, takes effect immediately, and is restored on launch.
+
+- **Standard:** compact connection columns, simplified process columns on fresh setups, Network Diagnostics Simple view, and Connection Investigator Simple view by default.
+- **Advanced:** complete connection columns (including local endpoints, signer, executable metadata), company and executable-path columns in Processes, quick **DNS LOOKUP** on Live Connections when window width permits, Network Diagnostics Advanced view, and Connection Investigator Advanced view by default.
+- **Super Advanced** remains a separate *manual* view inside Connection Investigator; changing the global mode never silently starts a deeper scan.
+- Existing saved table layouts are kept as the starting Standard layout; after switching, **Standard** and **Advanced** each save their own widths, column order, and visibility. **COLUMNS → Advanced technician columns** and **COLUMNS → Recommended compact layout** offer manual alternatives.
+- Either mode can still run diagnostics, export reports, view security/session history, and use the full Connection Investigator. Network tests and sensitive actions always require user initiation and confirmation.
+
+### App Mode validation on Windows
+
+1. Open **SETTINGS → APPLICATION MODE**, select Advanced, and verify the header indicates Advanced App Mode.
+2. Verify Live Connections shows technical columns, Processes displays company/path, and the DNS Lookup shortcut appears when the window is wide enough. In a narrow window, DNS Lookup must remain in **MORE ACTIONS**.
+3. Open Network Diagnostics and Connection Investigator; Advanced should be their initial view. Manually switch to Simple/Super Advanced and verify those views still work.
+4. Customize a connection column in Advanced, return to Standard, customize a different column, then switch back. Confirm each layout stays separate.
+5. Restart the test EXE; verify Advanced/Standard preference and the selected mode's columns survive.
+6. Test Matrix Green, Cyber Blue, Midnight Dark; resize to normal and minimum window sizes and verify no clipping.
+7. Confirm merely enabling Advanced Mode does not initiate pings, DNS requests, process termination, network blocking, updates, or telemetry.
+
+## In development: v6.7.0 Connection Investigator
+
+The v6.7.0 feature branch adds a **local-only, read-only Connection Investigator**. The official downloadable release is **still v6.6.3** until the new feature passes Windows testing and is explicitly published.
+
+Select a row in **LIVE CONNECTIONS** and choose **EXPLAIN** (or right-click the row → **Explain connection (Simple / Advanced)**, or press **Ctrl+I**).
+
+- **Simple mode (default):** plain-English explanation of the selected TCP/UDP endpoint, whether a remote peer is actually present, address classification, cautious port hints, offline publisher-signature context, and suggested follow-up checks.
+- **Advanced mode:** capture-time protocol, addresses, ports, process/PID, TCP state, signer, executable metadata, and (if the current process still matches its captured PID/name/path/start time) parent PID, command line and an on-disk executable SHA-256 hash.
+- **Super Advanced mode:** a third technical workspace with sortable/copyable capture-time socket rows for the selected PID, TCP/UDP and state counters, distinct remote-IP counts, IPv6 overview, session-observed endpoint events (not packet capture), and a deep forensic report. The view labels socket data as a snapshot and warns that historical PID matches may be affected by PID reuse.
+- **Technician report selection:** while Super Advanced is open, **COPY REPORT** and **SAVE REPORT** include its socket and session-observation appendix. Redaction remains enabled by default for all three modes.
+- **Shareable report:** copy or save a UTF-8 text report. **Redaction is enabled by default** and hides local/remote endpoint addresses, executable paths, command lines, and potentially sensitive signature details. An explicit warning appears before copying or saving with redaction disabled.
+- **Cleaner Live Connections layout:** a dedicated filter row and action row, no wide horizontal toolbar scrollbar, larger readable headers, and a consistent table/details region. **EXPLAIN**, **INSPECT**, and **EXPORT CSV** remain immediately visible; DNS lookup and disruptive actions move to **MORE ACTIONS** (with existing confirmations).
+- **Simplified sidebar:** working pages, Settings, and About appear first. Unfinished experimental modules are under a collapsed **PLANNED TOOLS** section to reduce scrolling.
+- **Compact column view:** fresh setups show the most useful columns. Existing users keep their saved column preferences; choose **COLUMNS → Recommended compact layout** to adopt the new view. **Show all columns (wide table)** is also available.
+- **First observed:** if a matching endpoint was observed by the current session history, the report marks the first observation **in this app session**, not the actual time the connection started.
+- **Safety/privacy:** no online reputation requests, new background connections, passive packet capture, automated process termination, firewall changes, or AI malware verdicts. The selected snapshot remains stable even as the live monitor refreshes.
+- **Limitations:** port and address classification are descriptive only; code signing is not a safety guarantee. A file's on-disk hash is not necessarily a hash of the running executable in memory.
+
+### v6.7.0 manual smoke-test checklist
+
+1. Select a TCP ESTABLISHED connection and click **EXPLAIN**. Switch Simple ↔ Advanced several times; confirm neither action changes the live connection.
+2. Select TCP LISTENING and UDP BOUND endpoints. Simple Mode must **not** call those outbound network connections.
+3. Copy and save the report with redaction checked. Verify it contains no local/remote IP addresses, executable paths, usernames, command-line arguments, or raw signature details.
+4. Uncheck redaction. Confirm a warning appears before any copy/save; Cancel must avoid sharing data.
+5. Verify local/loopback/special-purpose IPv4/IPv6 explanations, large executable paths and missing or access-denied process metadata.
+6. Close the process while investigation is open. The app must remain stable and avoid mixing details from a reused PID.
+7. Test all three investigator modes (**SIMPLE**, **ADVANCED**, **SUPER ADVANCED**) on a regular TCP connection, a listening socket, and a UDP endpoint. In Super Advanced, switch between **RELATED SOCKETS**, **SESSION EVENTS**, and **RAW EVIDENCE**; confirm the counters match the captured process and no packet/traffic claims are made.
+8. Save the **Super Advanced** report with redaction ON, and confirm there are no addresses, paths, or command-line private values in either the original fields or the extra socket/event appendix.
+9. Test keyboard shortcut **Ctrl+I**, right-click menu, window resizing, and all three themes. Open several inspector windows and switch application theme.
+8. Test the new toolbar, **MORE ACTIONS**, and **COLUMNS → Recommended compact layout** at 100% and 150% Windows display scaling. Verify that the table headers never disappear under the toolbar, and Settings/About remain easily accessible with PLANNED TOOLS collapsed.
+9. Open the public v6.6.3 EXE separately and verify that the new feature has not modified the existing released binary.
+
 ## Features
 
 - Live IPv4/IPv6 TCP and UDP endpoints with owning-process PIDs

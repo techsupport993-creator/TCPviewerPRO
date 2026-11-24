@@ -114,6 +114,7 @@ public sealed partial class MainForm
             tabs.SelectedIndex = 0;
             publisherFilterBox.SelectedIndex = publisherFilterBox.SelectedIndex == 1 ? 0 : 1;
         }
+        else if (e.Control && e.KeyCode == Keys.I) InvestigateSelectedConnection();
         else if (e.Control && e.KeyCode == Keys.S) ExportCsv();
         else return;
         e.Handled = true;
@@ -180,6 +181,7 @@ public sealed partial class MainForm
     private ContextMenuStrip BuildConnectionContextMenu()
     {
         var menu = new ContextMenuStrip { BackColor = panel2, ForeColor = Color.White };
+        menu.Items.Add("Explain connection (Simple / Advanced)", null, (_, _) => InvestigateSelectedConnection());
         menu.Items.Add("Process properties", null, (_, _) => InspectSelectedProcess());
         menu.Items.Add("Show only this process", null, (_, _) =>
         {

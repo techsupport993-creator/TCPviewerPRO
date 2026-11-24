@@ -33,6 +33,8 @@ public sealed partial class MainForm : Form
     readonly ToolStripStatusLabel footer = new("Ready");
     readonly FlowLayoutPanel navPanel = new();
     readonly List<Button> navButtons = new();
+    readonly List<Button> plannedNavButtons = new();
+    bool plannedNavExpanded;
     Button? pauseButton;
     bool monitoringPaused;
     readonly Dictionary<string, Color> connectionColors = DefaultConnectionColors();
@@ -62,6 +64,7 @@ public sealed partial class MainForm : Form
         LoadUpdatePreferences();
         LoadThemeSettings();
         LoadColorSettings();
+        LoadAppModeSettings();
         groupByProcess = ReadTableLayoutSettings().GroupByProcess;
         BuildUi();
         try { Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? Icon; }
@@ -83,7 +86,12 @@ public sealed partial class MainForm : Form
 
         var header = new Panel { Dock = DockStyle.Fill, BackColor = bg };
         var brand = new Label { Text = "TCP VIEWER  /  PRO", Font = new Font("Segoe UI Semibold", 19F), ForeColor = cyan, AutoSize = true, Location = new Point(4, 4) };
-        var subtitle = new Label { Text = "LIVE NETWORK CONNECTION MONITOR", ForeColor = muted, AutoSize = true, Location = new Point(7, 39), Font = new Font("Consolas", 8.5F) };
+        var subtitle = appModeSubtitle;
+        subtitle.ForeColor = muted;
+        subtitle.AutoSize = true;
+        subtitle.Location = new Point(7, 39);
+        subtitle.Font = new Font("Consolas", 8.5F);
+        UpdateAppModeSubtitle();
         header.Controls.Add(brand); header.Controls.Add(subtitle);
         var refresh = Button("REFRESH", cyan, PaletteFor(activeTheme).DarkButton); refresh.Size = new Size(104, 34); refresh.Anchor = AnchorStyles.Top | AnchorStyles.Right; refresh.Click += (_, _) => RefreshData(manual: true);
         pauseButton = Button("PAUSE", Color.FromArgb(255, 190, 90), Color.FromArgb(20, 25, 35)); pauseButton.Size = new Size(104, 34); pauseButton.Anchor = AnchorStyles.Top | AnchorStyles.Right; pauseButton.Click += (_, _) => ToggleMonitoring();
@@ -131,9 +139,9 @@ public sealed partial class MainForm : Form
 
         var workspace = new Panel { Dock = DockStyle.Fill, BackColor = bg };
         navPanel.Dock = DockStyle.Left;
-        navPanel.Width = 213;
+        navPanel.Width = 208;
         navPanel.BackColor = panel;
-        navPanel.Padding = new Padding(8, 10, 5, 8);
+        navPanel.Padding = new Padding(7, 9, 3, 8);
         navPanel.AutoScroll = true;
         navPanel.FlowDirection = FlowDirection.TopDown;
         navPanel.WrapContents = false;
@@ -141,8 +149,8 @@ public sealed partial class MainForm : Form
         {
             Text = "WORKSPACE", ForeColor = cyan,
             Font = new Font("Consolas", 9F, FontStyle.Bold),
-            Width = 185, Height = 32, TextAlign = ContentAlignment.MiddleLeft,
-            Margin = new Padding(5, 0, 0, 7)
+            Width = 171, Height = 28, TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(4, 0, 0, 5)
         };
         navPanel.Controls.Add(navTitle);
         AddNavButton("LIVE CONNECTIONS", 0);
@@ -151,15 +159,16 @@ public sealed partial class MainForm : Form
         AddNavButton("CONNECTION HISTORY", 3);
         AddNavSection("DIAGNOSTIC TOOLS");
         AddNavButton("NETWORK DIAGNOSTICS", 10);
-        AddNavSection("PLANNED MODULES");
-        AddNavButton("ETW MONITOR", 4);
-        AddNavButton("BANDWIDTH", 5);
-        AddNavButton("FIREWALL MANAGER", 6);
-        AddNavButton("PORT SCANNER", 7);
-        AddNavButton("IP INTELLIGENCE", 8);
-        AddNavButton("DNS MONITOR", 9);
+        AddNavSection("APPLICATION");
         AddNavButton("SETTINGS", 11);
         AddNavButton("ABOUT", 12);
+        AddPlannedNavToggle();
+        AddNavButton("ETW MONITOR", 4, planned: true);
+        AddNavButton("BANDWIDTH", 5, planned: true);
+        AddNavButton("FIREWALL MANAGER", 6, planned: true);
+        AddNavButton("PORT SCANNER", 7, planned: true);
+        AddNavButton("IP INTELLIGENCE", 8, planned: true);
+        AddNavButton("DNS MONITOR", 9, planned: true);
         tabs.SelectedIndexChanged += (_, _) => { UpdateNavSelection(); RenderActivityViews(); };
         workspace.Controls.Add(tabs);
         workspace.Controls.Add(navPanel);
@@ -178,26 +187,54 @@ public sealed partial class MainForm : Form
         var label = new Label
         {
             Text = title, ForeColor = cyan, Font = new Font("Consolas", 8.2F, FontStyle.Bold),
-            Width = 186, Height = 32, TextAlign = ContentAlignment.BottomLeft,
-            Margin = new Padding(5, 14, 0, 6)
+            Width = 169, Height = 29, TextAlign = ContentAlignment.BottomLeft,
+            Margin = new Padding(4, 7, 0, 4)
         };
         navPanel.Controls.Add(label);
     }
 
-    void AddNavButton(string title, int tabIndex)
+    void AddNavButton(string title, int tabIndex, bool planned = false)
     {
         var b = new Button
         {
-            Text = "  " + title, Tag = tabIndex, Width = 185, Height = 35,
+            Text = "  " + title, Tag = tabIndex, Width = 171, Height = 33,
             TextAlign = ContentAlignment.MiddleLeft, FlatStyle = FlatStyle.Flat,
             BackColor = panel, ForeColor = muted, Font = new Font("Segoe UI Semibold", 8.2F),
-            Cursor = Cursors.Hand, Margin = new Padding(2, 1, 0, 1)
+            Cursor = Cursors.Hand, Margin = new Padding(2, 1, 0, 1),
+            Visible = !planned || plannedNavExpanded
         };
         b.FlatAppearance.BorderSize = 0;
         b.FlatAppearance.MouseOverBackColor = panel2;
         b.Click += (_, _) => tabs.SelectedIndex = tabIndex;
         navButtons.Add(b);
         navPanel.Controls.Add(b);
+        if (planned) plannedNavButtons.Add(b);
+    }
+
+    void AddPlannedNavToggle()
+    {
+        var toggle = new Button
+        {
+            Text = "  ▸ PLANNED TOOLS", Width = 171, Height = 34,
+            TextAlign = ContentAlignment.MiddleLeft, FlatStyle = FlatStyle.Flat,
+            BackColor = panel, ForeColor = cyan,
+            Font = new Font("Segoe UI Semibold", 8.4F),
+            Cursor = Cursors.Hand, Margin = new Padding(2, 9, 0, 1)
+        };
+        toggle.FlatAppearance.BorderSize = 0;
+        toggle.FlatAppearance.MouseOverBackColor = panel2;
+        toggle.Click += (_, _) =>
+        {
+            plannedNavExpanded = !plannedNavExpanded;
+            navPanel.SuspendLayout();
+            try
+            {
+                foreach (var button in plannedNavButtons) button.Visible = plannedNavExpanded;
+                toggle.Text = plannedNavExpanded ? "  ▾ PLANNED TOOLS" : "  ▸ PLANNED TOOLS";
+            }
+            finally { navPanel.ResumeLayout(true); }
+        };
+        navPanel.Controls.Add(toggle);
     }
 
     void UpdateNavSelection()
@@ -286,57 +323,177 @@ public sealed partial class MainForm : Form
     TabPage BuildConnectionsTab()
     {
         var page = Page("CONNECTIONS");
-        var bar = new Panel { Dock = DockStyle.Top, Height = 95, BackColor = panel,
-            Padding = new Padding(10, 7, 6, 6), AutoScroll = true, AutoScrollMinSize = new Size(1080, 90) };
-        search.Width = 205;
-        search.Location = new Point(10, 8);
-        search.PlaceholderText = "Search process, IP, port, company…";
+
+        // Explicit rows prevent a docked toolbar from obscuring connection headers
+        // or data when the app is resized or Windows display scaling changes.
+        var pageLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, BackColor = bg, ColumnCount = 1, RowCount = 3,
+            Margin = Padding.Empty, Padding = Padding.Empty
+        };
+        pageLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        pageLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        pageLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        page.Controls.Add(pageLayout);
+
+        var bar = new Panel
+        {
+            Dock = DockStyle.Fill, Margin = Padding.Empty, BackColor = panel
+        };
+        search.Width = 232;
+        search.Height = 30;
+        search.Location = new Point(14, 12);
+        search.PlaceholderText = "Search connections, apps or IPs...";
         StyleText(search);
         search.TextChanged += (_, _) => ApplyFilter();
 
-        var filter = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 124, Left = 226, Top = 8, BackColor = panel2, ForeColor = Color.White };
+        var filter = new ComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList, Width = 100, Height = 30,
+            BackColor = panel2, ForeColor = Color.White
+        };
         filter.Items.AddRange(new object[] { "ALL", "TCP", "UDP", "LISTENING", "ESTABLISHED" });
         filter.SelectedIndex = 0;
         filter.SelectedIndexChanged += (_, _) => { activeFilter = filter.Text; ApplyFilter(); };
+        new ToolTip().SetToolTip(filter, "Show connections by protocol or state.");
 
         publisherFilterBox.DropDownStyle = ComboBoxStyle.DropDownList;
         publisherFilterBox.BackColor = panel2;
         publisherFilterBox.ForeColor = Color.White;
-        publisherFilterBox.Width = 197;
-        publisherFilterBox.Left = 362;
-        publisherFilterBox.Top = 8;
+        publisherFilterBox.Width = 180;
+        publisherFilterBox.Height = 30;
         publisherFilterBox.Items.AddRange(PublisherFilterOptions());
         publisherFilterBox.SelectedIndex = 0;
-        publisherFilterBox.SelectedIndexChanged += (_, _) => { activePublisherFilter = publisherFilterBox.Text; ApplyFilter(); };
-        new ToolTip().SetToolTip(publisherFilterBox, "Verified MS uses Authenticode. The optional MS + METADATA filter also uses spoofable CompanyName metadata.");
+        publisherFilterBox.SelectedIndexChanged += (_, _) =>
+        {
+            activePublisherFilter = publisherFilterBox.Text;
+            ApplyFilter();
+        };
+        new ToolTip().SetToolTip(publisherFilterBox,
+            "Publisher trust uses offline Authenticode checks. Company metadata can be spoofed.");
 
-        var rate = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 99, Left = 570, Top = 8, BackColor = panel2, ForeColor = Color.White };
+        var rate = new ComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList, Width = 88, Height = 30,
+            BackColor = panel2, ForeColor = Color.White
+        };
         rate.Items.AddRange(new object[] { "1 sec", "2 sec", "5 sec", "10 sec" });
         rate.SelectedIndex = 1;
         rate.SelectedIndexChanged += (_, _) =>
         {
-            timer.Interval = rate.SelectedIndex switch { 0 => 1000, 1 => 2000, 2 => 5000, _ => 10000 };
-            if (!monitoringPaused) refreshIndicator.Text = $"AUTO • {timer.Interval / 1000} SEC";
+            timer.Interval = rate.SelectedIndex switch
+            {
+                0 => 1000, 1 => 2000, 2 => 5000, _ => 10000
+            };
+            if (!monitoringPaused)
+                refreshIndicator.Text = $"AUTO • {timer.Interval / 1000} SEC";
         };
 
         visibleCount.ForeColor = muted;
-        visibleCount.AutoSize = true;
-        visibleCount.Location = new Point(683, 12);
+        visibleCount.AutoSize = false;
+        visibleCount.AutoEllipsis = true;
+        visibleCount.Height = 25;
+        visibleCount.TextAlign = ContentAlignment.MiddleLeft;
         visibleCount.Text = "Loading endpoints…";
 
-        var export = Button("EXPORT CSV", green, bg); export.Left = 10; export.Top = 45; export.Click += (_, _) => ExportCsv();
-        var dns = Button("DNS LOOKUP", cyan, bg); dns.Left = 140; dns.Top = 45; dns.Click += async (_, _) => await LookupSelectedDns();
-        var close = Button("CLOSE TCP", Color.FromArgb(255, 190, 90), bg); close.Left = 270; close.Top = 45; close.Click += (_, _) => CloseSelectedTcp();
-        var block = Button("BLOCK REMOTE IP", Color.FromArgb(255, 105, 115), bg); block.Left = 400; block.Top = 45; block.Width = 145; block.Click += (_, _) => BlockSelectedIp();
-        var kill = Button("END PROCESS", Color.FromArgb(255, 155, 95), bg); kill.Left = 555; kill.Top = 45; kill.Click += (_, _) => KillSelectedProcess();
-        var inspect = Button("INSPECT", Color.FromArgb(180, 145, 255), bg); inspect.Left = 682; inspect.Top = 45; inspect.Width = 112; inspect.Click += (_, _) => InspectSelectedProcess();
-        var group = new CheckBox { Text = "GROUP PROCESS", Checked = groupByProcess, AutoSize = true,
-            ForeColor = Color.White, Location = new Point(811, 55) };
-        group.CheckedChanged += (_, _) => { groupByProcess = group.Checked; ApplyFilter(); ScheduleGridLayoutSave(); };
-        var columns = Button("COLUMNS", cyan, bg); columns.Left = 945; columns.Top = 45; columns.Width = 110;
+        // The most useful investigation actions stay visible. Less-frequent and
+        // destructive actions move into a clearly named dropdown.
+        var explain = Button("EXPLAIN", green, PaletteFor(activeTheme).DarkButton);
+        explain.Width = 145;
+        explain.Click += (_, _) => InvestigateSelectedConnection();
+        new ToolTip().SetToolTip(explain,
+            "Explain the selected connection in Simple or Advanced mode.");
+
+        var inspect = Button("INSPECT", Color.FromArgb(180, 145, 255), bg);
+        inspect.Width = 110;
+        inspect.Click += (_, _) => InspectSelectedProcess();
+
+        var export = Button("EXPORT CSV", cyan, PaletteFor(activeTheme).DarkButton);
+        export.Width = 112;
+        export.Click += (_, _) => ExportCsv();
+
+        var quickDns = Button("DNS LOOKUP", cyan, PaletteFor(activeTheme).DarkButton);
+        quickDns.Width = 122;
+        quickDns.Click += async (_, _) => await LookupSelectedDns();
+        new ToolTip().SetToolTip(quickDns, "Resolve the selected remote address on demand.");
+
+        var more = Button("MORE ACTIONS ▾", panel2, Color.White);
+        more.Width = 126;
+        var moreMenu = new ContextMenuStrip { BackColor = panel2, ForeColor = Color.White };
+        moreMenu.Items.Add("DNS lookup for selected remote IP", null,
+            async (_, _) => await LookupSelectedDns());
+        moreMenu.Items.Add(new ToolStripSeparator());
+        moreMenu.Items.Add("Close selected TCP connection (confirm)", null,
+            (_, _) => CloseSelectedTcp());
+        moreMenu.Items.Add("Block remote IP for all apps (confirm)", null,
+            (_, _) => BlockSelectedIp());
+        moreMenu.Items.Add("End owning process (confirm)", null,
+            (_, _) => KillSelectedProcess());
+        more.Click += (_, _) => moreMenu.Show(more, new Point(0, more.Height));
+
+        var columns = Button("COLUMNS", panel2, Color.White);
+        columns.Width = 104;
         columns.Click += (_, _) => ShowColumnMenu(columns);
-        bar.Controls.AddRange(new Control[] { search, filter, publisherFilterBox, rate, visibleCount, export, dns, close, block, kill, inspect, group, columns });
-        page.Controls.Add(bar);
+        new ToolTip().SetToolTip(columns,
+            "Select columns, or switch to a recommended compact connection layout.");
+
+        var group = new CheckBox
+        {
+            Text = "GROUP PROCESSES", Checked = groupByProcess,
+            AutoSize = false, Width = 144, Height = 34,
+            TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.White
+        };
+        var groupMenu = new ToolStripMenuItem("Group connections by process")
+        {
+            Checked = groupByProcess, CheckOnClick = true
+        };
+        group.CheckedChanged += (_, _) =>
+        {
+            groupByProcess = group.Checked;
+            groupMenu.Checked = group.Checked;
+            ApplyFilter();
+            ScheduleGridLayoutSave();
+        };
+        groupMenu.CheckedChanged += (_, _) => group.Checked = groupMenu.Checked;
+        moreMenu.Items.Add(new ToolStripSeparator());
+        moreMenu.Items.Add(groupMenu);
+
+        var toolbarButtons = new Control[] { explain, inspect, export, quickDns, more, columns, group };
+        void ArrangeToolbar()
+        {
+            filter.Location = new Point(search.Right + 10, 12);
+            publisherFilterBox.Location = new Point(filter.Right + 10, 12);
+            rate.Location = new Point(publisherFilterBox.Right + 10, 12);
+            visibleCount.Left = rate.Right + 14;
+            visibleCount.Top = 12;
+            visibleCount.Width = Math.Max(70, bar.ClientSize.Width - visibleCount.Left - 12);
+            visibleCount.Visible = bar.ClientSize.Width >= visibleCount.Left + 115;
+
+            // Advanced Mode makes DNS a one-click action when there is room;
+            // MORE ACTIONS retains the same command at narrower widths.
+            bool showQuickDns = advancedAppMode && bar.ClientSize.Width >= 1080;
+            quickDns.Visible = showQuickDns;
+            int nextX = 14;
+            foreach (var control in toolbarButtons)
+            {
+                control.Left = nextX;
+                control.Top = 60;
+                if (control != quickDns || showQuickDns)
+                    nextX = control.Right + 8;
+            }
+            // The same toggle remains available under MORE ACTIONS at narrow widths.
+            group.Visible = group.Right + 8 <= bar.ClientSize.Width;
+        }
+
+        bar.Controls.AddRange(new Control[]
+        {
+            search, filter, publisherFilterBox, rate, visibleCount,
+            explain, inspect, export, quickDns, more, columns, group
+        });
+        bar.Resize += (_, _) => ArrangeToolbar();
+        updateConnectionToolbarForMode = ArrangeToolbar;
+        ArrangeToolbar();
+        pageLayout.Controls.Add(bar, 0, 0);
 
         ConfigureGrid(grid);
         AddCol("Group", "PROCESS GROUP", 178);
@@ -368,24 +525,35 @@ public sealed partial class MainForm : Form
                 grid.ClearSelection();
                 grid.Rows[e.RowIndex].Selected = true;
                 var colIndex = e.ColumnIndex >= 0 && grid.Columns[e.ColumnIndex].Visible
-                    ? e.ColumnIndex : grid.Columns.Cast<DataGridViewColumn>()
+                    ? e.ColumnIndex
+                    : grid.Columns.Cast<DataGridViewColumn>()
                         .Where(c => c.Visible).OrderBy(c => c.DisplayIndex).First().Index;
                 grid.CurrentCell = grid.Rows[e.RowIndex].Cells[colIndex];
             }
         };
         grid.ContextMenuStrip = BuildConnectionContextMenu();
-        grid.CellDoubleClick += (_, e) => { if (e.RowIndex >= 0) InspectSelectedProcess(); };
+        grid.CellDoubleClick += (_, e) =>
+        {
+            if (e.RowIndex >= 0) InspectSelectedProcess();
+        };
         grid.Dock = DockStyle.Fill;
+        grid.Margin = Padding.Empty;
         grid.DataSource = binding;
         ActivateGridLayoutPersistence();
         grid.SelectionChanged += (_, _) => UpdateDetails();
-        var bottom = new Panel { Dock = DockStyle.Bottom, Height = 44, BackColor = panel, Padding = new Padding(10, 8, 10, 5) };
+        pageLayout.Controls.Add(grid, 0, 1);
+
+        var bottom = new Panel
+        {
+            Dock = DockStyle.Fill, Margin = Padding.Empty, BackColor = panel,
+            Padding = new Padding(12, 8, 10, 6)
+        };
         detail.Dock = DockStyle.Fill;
         detail.ForeColor = muted;
-        detail.Text = "Select a connection to inspect details. Double-click for process properties.";
+        detail.AutoEllipsis = true;
+        detail.Text = "Select a connection, then EXPLAIN for Simple/Advanced details.";
         bottom.Controls.Add(detail);
-        page.Controls.Add(grid);
-        page.Controls.Add(bottom);
+        pageLayout.Controls.Add(bottom, 0, 2);
         return page;
     }
 
@@ -465,12 +633,13 @@ public sealed partial class MainForm : Form
     void ConfigureGrid(DataGridView g)
     {
         g.BackgroundColor=bg;g.BorderStyle=BorderStyle.None;g.GridColor=PaletteFor(activeTheme).GridLine;
-        g.EnableHeadersVisualStyles=false;g.ColumnHeadersDefaultCellStyle.BackColor=panel2;g.ColumnHeadersDefaultCellStyle.ForeColor=cyan;g.ColumnHeadersDefaultCellStyle.Font=new Font("Consolas",8.5F,FontStyle.Bold);
+        g.EnableHeadersVisualStyles=false;g.ColumnHeadersDefaultCellStyle.BackColor=panel2;g.ColumnHeadersDefaultCellStyle.ForeColor=cyan;g.ColumnHeadersDefaultCellStyle.Font=new Font("Segoe UI Semibold",9F);g.ColumnHeadersDefaultCellStyle.Padding=new Padding(7,0,3,0);
         g.DefaultCellStyle.BackColor=panel;g.DefaultCellStyle.ForeColor=Color.Gainsboro;g.DefaultCellStyle.SelectionBackColor=PaletteFor(activeTheme).SelectedRow;g.DefaultCellStyle.SelectionForeColor=Color.White;
+        g.DefaultCellStyle.Padding = new Padding(6,0,3,0);
         g.AlternatingRowsDefaultCellStyle.BackColor=PaletteFor(activeTheme).AlternateRow;
         g.AutoGenerateColumns=false;g.RowHeadersVisible=false;g.AllowUserToAddRows=false;g.AllowUserToDeleteRows=false;g.ReadOnly=true;g.SelectionMode=DataGridViewSelectionMode.FullRowSelect;g.MultiSelect=false;g.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.None;g.Dock=DockStyle.Fill;
-        g.ColumnHeadersHeight = 32;
-        g.RowTemplate.Height = 27;
+        g.ColumnHeadersHeight = 37;
+        g.RowTemplate.Height = 30;
         g.AllowUserToResizeRows = false;
         // Prevent modal error dialogs if a Windows data binding conversion fails;
         // the actual underlying type conversion is handled by the framework.

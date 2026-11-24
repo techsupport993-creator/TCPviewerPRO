@@ -9,6 +9,26 @@ void Assert(bool condition, string scenario)
     passed++;
 }
 
+// Global Standard/Advanced App Mode is opt-in, persisted and safe on invalid JSON.
+Assert(AppModeProfile.Normalize("Advanced") == AppModeProfile.Advanced,
+    "Advanced app mode is recognized");
+Assert(AppModeProfile.Normalize("ADVANCED") == AppModeProfile.Advanced,
+    "Advanced app mode normalizes case");
+Assert(AppModeProfile.Normalize("Super Advanced") == AppModeProfile.Standard,
+    "unknown app-wide mode falls back to Standard");
+Assert(!AppModeProfile.IsAdvanced(null) && !AppModeProfile.IsAdvanced(""),
+    "missing app-wide setting stays Standard");
+Assert(AppModeProfile.FromJson(@"{""Mode"":""Advanced""}").Mode == AppModeProfile.Advanced,
+    "saved Advanced app mode reloads after startup");
+Assert(AppModeProfile.FromJson(@"{""Mode"":""Invalid""}").Mode == AppModeProfile.Standard,
+    "invalid saved mode does not enable Advanced");
+Assert(AppModeProfile.FromJson("{not-json}").Mode == AppModeProfile.Standard,
+    "corrupt app-mode settings use safe defaults");
+var appModeJson = System.Text.Json.JsonSerializer.Serialize(
+    new AppModePreferences { Mode = AppModeProfile.Advanced });
+Assert(AppModeProfile.FromJson(appModeJson).Mode == AppModeProfile.Advanced,
+    "Advanced mode preference survives JSON round trip");
+
 string repo = "techsupport993-creator/TCPviewerPRO";
 string tag = "v6.4.2";
 string exe = $"https://github.com/{repo}/releases/download/{tag}/TCPViewerPro.exe";
@@ -86,6 +106,110 @@ Assert(endpoint == SecurityGuards.EndpointIdentity("TCP", 1234, "192.168.1.10", 
     "same endpoint identity is stable across refreshes");
 Assert(endpoint != SecurityGuards.EndpointIdentity("TCP", 1234, "192.168.1.10", 50124, "1.1.1.1", 443),
     "changed local port creates a separate endpoint");
+
+
+﻿// Connection Investigator v6.7.0: deterministic explanations, evidence, and redaction.
+var investigation = new ConnectionInvestigation(
+    "TCP", "ExampleBrowser", 4321,
+    "192.168.0.197", 51555, "203.0.113.40", 443,
+    "ESTABLISHED", "Verified third party", "Example Signer", "Example Company",
+    "Valid", @"Inspected at C:\Users\TestUser\AppData\Local\Example",
+    @"C:\Users\TestUser\Apps\browser.exe",
+    new DateTime(2026, 11, 23, 20, 0, 0, DateTimeKind.Utc),
+    new DateTime(2026, 11, 23, 20, 10, 0),
+    new DateTime(2026, 11, 23, 20, 5, 0));
+var investigationDetails = new InvestigationProcessDetails(
+    "31", @"C:\Users\TestUser\Apps\browser.exe --user-data-dir=C:\Users\TestUser\Private",
+    "2026-11-23 20:00:00", new string('F', 64), "Identity verified");
+
+Assert(ConnectionInvestigatorService.HasRemotePeer(investigation), "TCP remote endpoint detected");
+Assert(ConnectionInvestigatorService.AddressType(investigation) == "Reserved or special-purpose address",
+    "special-purpose IP is not described as a normal public host");
+Assert(ConnectionInvestigatorService.Explain(investigation).Contains("Port 443") &&
+       ConnectionInvestigatorService.Explain(investigation).Contains("does not prove"),
+    "HTTPS hint avoids assuming verified secure traffic");
+Assert(ConnectionInvestigatorService.ExplainSignature(investigation).Contains("revocation was not checked"),
+    "verified signature is qualified as an offline check");
+Assert(ConnectionInvestigatorService.Endpoint("fe80::1%3", 8080) == "[fe80::1%3]:8080",
+    "scoped IPv6 endpoints use readable bracket formatting");
+Assert(ConnectionInvestigatorService.Endpoint("192.168.1.1", 443) == "192.168.1.1:443",
+    "IPv4 endpoint formatting stays readable");
+
+var redactedInvestigation = ConnectionInvestigatorService.FormatReport(investigation, investigationDetails, true);
+Assert(redactedInvestigation.Contains("Local endpoint: [REDACTED]") &&
+       redactedInvestigation.Contains("Remote endpoint: [REDACTED]") &&
+       redactedInvestigation.Contains("Executable path: [REDACTED]") &&
+       redactedInvestigation.Contains("Command line: [REDACTED]"),
+    "sharing mode redacts both endpoints, executable path and command line");
+Assert(!redactedInvestigation.Contains("192.168.0.197") &&
+       !redactedInvestigation.Contains("203.0.113.40") &&
+       !redactedInvestigation.Contains("TestUser") &&
+       !redactedInvestigation.Contains("--user-data-dir") &&
+       !redactedInvestigation.Contains(@"C:\Users\"),
+    "sharing mode does not leak private IPs, username or path in raw signature details");
+Assert(redactedInvestigation.Contains("first seen in this app session"),
+    "first observed is accurately scoped to the current session");
+
+var fullInvestigation = ConnectionInvestigatorService.FormatReport(investigation, investigationDetails, false);
+Assert(fullInvestigation.Contains("192.168.0.197:51555") &&
+       fullInvestigation.Contains("203.0.113.40:443") &&
+       fullInvestigation.Contains("TestUser"),
+    "local advanced mode includes original evidence only when unredacted");
+Assert(fullInvestigation.Contains("not a security verdict", StringComparison.OrdinalIgnoreCase),
+    "reports explicitly avoid malware verdicts");
+
+var boundUdp = investigation with
+{
+    Protocol = "UDP", RemoteAddress = "0.0.0.0", RemotePort = 0, State = "BOUND"
+};
+Assert(!ConnectionInvestigatorService.HasRemotePeer(boundUdp),
+    "bound UDP socket is not mistaken for an active remote connection");
+Assert(ConnectionInvestigatorService.Explain(boundUdp).Contains("without a remote peer"),
+    "bound UDP explanation does not imply outbound traffic");
+Assert(ConnectionInvestigatorService.FormatReport(boundUdp, null, true).Contains("Remote endpoint: None reported"),
+    "no remote endpoint displays an accurate neutral statement");
+
+var localLoopback = investigation with { RemoteAddress = "127.0.0.1", RemotePort = 60000 };
+Assert(ConnectionInvestigatorService.AddressType(localLoopback) == "Loopback (this computer)",
+    "localhost is identified as a connection on the same PC");
+
+
+// Super Advanced: aggregate process-owned socket rows and session-only observations.
+var socketRows = new[]
+{
+    new InvestigationSocket("TCP", "ESTABLISHED", "192.168.4.3", 52212, "1.1.1.1", 443),
+    new InvestigationSocket("TCP", "ESTABLISHED", "192.168.4.3", 52214, "1.1.1.1", 443),
+    new InvestigationSocket("TCP", "LISTENING", "0.0.0.0", 80, "0.0.0.0", 0),
+    new InvestigationSocket("UDP", "BOUND", "fe80::1%7", 5353, "::", 0),
+};
+var observedRows = new[]
+{
+    new InvestigationEvent(new DateTime(2026, 11, 23, 20, 10, 0), "8.8.8.8", 443, "ESTABLISHED"),
+    new InvestigationEvent(new DateTime(2026, 11, 23, 20, 11, 0), "203.0.113.88", 443, "TIME-WAIT")
+};
+var socketStats = ConnectionInvestigatorForensics.Summarize(socketRows, observedRows);
+Assert(socketStats.EndpointCount == 4 && socketStats.TcpCount == 3 && socketStats.UdpCount == 1,
+    "Super Advanced categorizes captured TCP and UDP sockets");
+Assert(socketStats.EstablishedCount == 2 && socketStats.ListeningCount == 1 &&
+       socketStats.UniqueRemoteAddresses == 1 && socketStats.Ipv6Count == 1,
+    "Super Advanced counts states, unique remote addresses and IPv6 without counting listeners as peers");
+Assert(socketStats.ObservationCount == 2,
+    "Super Advanced reports number of session observations without inventing timing");
+var safeDeep = ConnectionInvestigatorForensics.FormatDeepReport(investigation, investigationDetails,
+    socketRows, observedRows, redactSensitive: true);
+Assert(safeDeep.Contains("SUPER ADVANCED / PROCESS SOCKET SNAPSHOT") &&
+       safeDeep.Contains("Endpoints: 4") && safeDeep.Contains("SESSION OBSERVATIONS FOR SAME PID"),
+    "Super Advanced produces a useful detailed technician report");
+Assert(!safeDeep.Contains("192.168.4.3") && !safeDeep.Contains("1.1.1.1") &&
+       !safeDeep.Contains("8.8.8.8") && !safeDeep.Contains("203.0.113.88") &&
+       !safeDeep.Contains("fe80::1") && !safeDeep.Contains("TestUser"),
+    "Super Advanced share-safe report does not leak addresses or usernames");
+var rawDeep = ConnectionInvestigatorForensics.FormatDeepReport(investigation, investigationDetails,
+    socketRows, observedRows, redactSensitive: false);
+Assert(rawDeep.Contains("192.168.4.3:52212") && rawDeep.Contains("[fe80::1%7]:5353") &&
+       rawDeep.Contains("8.8.8.8:443"), "unredacted technician report contains captured socket and event details");
+Assert(rawDeep.Contains("PID-matched historical events can belong to another process after PID reuse"),
+    "session observations clearly warn about PID reuse");
 
 Assert(SecurityGuards.IsCriticalWindowsProcess("lsass", @"C:\Windows\System32\lsass.exe"), "LSASS protected");
 Assert(SecurityGuards.IsCriticalWindowsProcess("svchost", @"C:\Windows\System32\svchost.exe"), "svchost protected");

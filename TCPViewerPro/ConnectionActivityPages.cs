@@ -18,7 +18,8 @@ public sealed partial class MainForm
         string RemoteAddress,
         int RemotePort,
         string State,
-        string AddressScope);
+        string AddressScope,
+        string EndpointKey);
 
     private static readonly Font ActivityStateFont = new("Segoe UI Semibold", 9F);
     private readonly List<ConnectionActivity> connectionActivity = new();
@@ -264,7 +265,7 @@ public sealed partial class MainForm
     {
         var entry = new ConnectionActivity(
             DateTime.Now, row.Process, row.Pid, row.RemoteAddress,
-            row.RemotePort, row.State, GetAddressScope(row.RemoteAddress));
+            row.RemotePort, row.State, GetAddressScope(row.RemoteAddress), row.EndpointKey);
         connectionActivity.Insert(0, entry);
         if (connectionActivity.Count > 2000)
             connectionActivity.RemoveRange(2000, connectionActivity.Count - 2000);

@@ -69,7 +69,7 @@ public sealed partial class MainForm
         container.Controls.Add(diagnosticAdvancedView);
         container.Controls.Add(diagnosticSimpleView);
         layout.Controls.Add(container, 0, 1);
-        SetDiagnosticMode(false);
+        SetDiagnosticMode(advancedAppMode);
         return page;
     }
 
