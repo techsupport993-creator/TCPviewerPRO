@@ -24,6 +24,26 @@ See the application's live connection monitor, Network Diagnostics, and About pa
 
 ![TCP Viewer Pro v6.6.3 application screenshot 3](docs/screenshots/ChatGPT%20Image%20Nov%2023%2C%202026%2C%2008_54_03%20PM-3.png)
 
+## In development: application-wide Standard / Advanced Mode
+
+The v6.7.0 test branch adds **SETTINGS → APPLICATION MODE**. Select **STANDARD — Everyday use** or **ADVANCED — IT Technician**. This preference saves under the user's local app settings, takes effect immediately, and is restored on launch.
+
+- **Standard:** compact connection columns, simplified process columns on fresh setups, Network Diagnostics Simple view, and Connection Investigator Simple view by default.
+- **Advanced:** complete connection columns (including local endpoints, signer, executable metadata), company and executable-path columns in Processes, quick **DNS LOOKUP** on Live Connections when window width permits, Network Diagnostics Advanced view, and Connection Investigator Advanced view by default.
+- **Super Advanced** remains a separate *manual* view inside Connection Investigator; changing the global mode never silently starts a deeper scan.
+- Existing saved table layouts are kept as the starting Standard layout; after switching, **Standard** and **Advanced** each save their own widths, column order, and visibility. **COLUMNS → Advanced technician columns** and **COLUMNS → Recommended compact layout** offer manual alternatives.
+- Either mode can still run diagnostics, export reports, view security/session history, and use the full Connection Investigator. Network tests and sensitive actions always require user initiation and confirmation.
+
+### App Mode validation on Windows
+
+1. Open **SETTINGS → APPLICATION MODE**, select Advanced, and verify the header indicates Advanced App Mode.
+2. Verify Live Connections shows technical columns, Processes displays company/path, and the DNS Lookup shortcut appears when the window is wide enough. In a narrow window, DNS Lookup must remain in **MORE ACTIONS**.
+3. Open Network Diagnostics and Connection Investigator; Advanced should be their initial view. Manually switch to Simple/Super Advanced and verify those views still work.
+4. Customize a connection column in Advanced, return to Standard, customize a different column, then switch back. Confirm each layout stays separate.
+5. Restart the test EXE; verify Advanced/Standard preference and the selected mode's columns survive.
+6. Test Matrix Green, Cyber Blue, Midnight Dark; resize to normal and minimum window sizes and verify no clipping.
+7. Confirm merely enabling Advanced Mode does not initiate pings, DNS requests, process termination, network blocking, updates, or telemetry.
+
 ## In development: v6.7.0 Connection Investigator
 
 The v6.7.0 feature branch adds a **local-only, read-only Connection Investigator**. The official downloadable release is **still v6.6.3** until the new feature passes Windows testing and is explicitly published.
