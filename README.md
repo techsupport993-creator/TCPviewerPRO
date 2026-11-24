@@ -1,10 +1,10 @@
 # TCP Viewer Pro
 
-**Code signing policy:** [Read release-signing readiness, trust limits and future signed-release verification](CODE_SIGNING_POLICY.md). The current v6.6.2 EXE is unsigned; the project is exploring trusted signing, but no provider has approved or signed it yet.
+**Code signing policy:** [Read release-signing readiness, trust limits and future signed-release verification](CODE_SIGNING_POLICY.md). The current v6.6.3 EXE is unsigned; the project is exploring trusted signing, but no provider has approved or signed it yet.
 
 A Windows network connection monitor and process-investigation desktop app built using C# WinForms.
 
-**Current source version: 6.6.3 (unreleased bug-fix candidate).** The latest published download remains v6.6.2 and is unsigned.
+**Latest stable release: v6.6.3.** The Windows x64 EXE is currently unsigned.
 
 ## Download TCP Viewer Pro (Windows 10/11, x64)
 
@@ -13,6 +13,16 @@ A Windows network connection monitor and process-investigation desktop app built
 Or browse the **[GitHub Releases page](https://github.com/techsupport993-creator/TCPviewerPRO/releases)** to download files labeled with their version, such as `TCPViewerPro_v6.4.0.exe`, and the corresponding `.sha256` checksum. Releases also retain `TCPViewerPro.exe` for compatibility with older automatic updaters. Both EXEs for a given release contain identical bytes.
 
 Extracting ZIP files or installing Python or the .NET runtime is **not required** for the self-contained EXE. Windows may display an unknown-publisher warning until code signing is configured; verify the release checksum and download only from this repository.
+
+## Screenshots — TCP Viewer Pro v6.6.3
+
+See the application's live connection monitor, Network Diagnostics, and About page. Screenshots are illustrative; network activity and counts vary by PC.
+
+![TCP Viewer Pro v6.6.3 application screenshot 1](docs/screenshots/ChatGPT%20Image%20Nov%2023%2C%202026%2C%2008_54_02%20PM-1.png)
+
+![TCP Viewer Pro v6.6.3 application screenshot 2](docs/screenshots/ChatGPT%20Image%20Nov%2023%2C%202026%2C%2008_54_02%20PM-2.png)
+
+![TCP Viewer Pro v6.6.3 application screenshot 3](docs/screenshots/ChatGPT%20Image%20Nov%2023%2C%202026%2C%2008_54_03%20PM-3.png)
 
 ## Features
 
@@ -41,9 +51,9 @@ When multiple copies of TCP Viewer Pro are present, **each EXE is its own instal
 
 **Test on Windows:** Make two files in separate folders (for example, v6.2.0 and v6.4.2). Open the older EXE and update it to v6.4.3. Reopen the other file; its version should remain unchanged. Then launch the same EXE twice, attempt its next update, and verify you receive a clear request to close the extra instance rather than an unexplained installation failure. The app remains unsigned; do not turn off Windows protections to run it.
 
-## v6.6.3 release candidate — reliability and privacy fixes (not published yet)
+## New in v6.6.3 — reliability and privacy fixes
 
-This branch is a release candidate. **It is not a signed build or a public release.** The public v6.6.2 download remains available unchanged.
+**v6.6.3 is a public release.** The Windows x64 build passed GitHub Actions automated regression tests, and the project maintainer reported successful smoke testing on one Windows PC. This release remains **unsigned**; download only from the official [v6.6.3 release page](https://github.com/techsupport993-creator/TCPviewerPRO/releases/tag/v6.6.3).
 
 - Upgrade Windows application and security test project from unsupported .NET 8 to supported .NET 10 LTS. The release is still a self-contained x64 EXE.
 - Avoid duplicate "new connection" events when an existing TCP connection changes state.
@@ -54,18 +64,13 @@ This branch is a release candidate. **It is not a signed build or a public relea
 - Preserve the selected process and scroll position as the Processes table refreshes.
 - Extend automated regression checks and require a deliberate manually initiated release workflow. Merely pushing to `main` or pushing a version tag will **not** publish a GitHub Release.
 
-### What must happen before v6.6.3 is released
+### Testing and release safety
 
-1. Review and merge the bug-fix pull request **only after the PR Windows build and regression tests pass**.
-2. Download the PR workflow's Windows executable artifact and manually run it on a Windows 10/11 x64 computer.
-3. Test TCP/UDP monitoring, IPv6 scoped addresses, connected/disconnected TCP states, process selection during refresh, all three themes, and the Network Diagnostics simple/advanced pages.
-4. Check that Security Center does not mark `169.254.10.20` as a public internet address. Check that TCP state changes don't create duplicate new-connection events. Confirm auto-update checks are OFF until explicitly enabled.
-5. Export the live connections CSV and activity CSV; verify success and an understandable error message on a deliberately non-writable destination.
-6. Test the updater using a **throwaway copy** of the EXE. Do not use production machines to validate file replacement. Test normal upgrades and ensure the unsigned/signed trust checks still behave correctly.
-7. After testing, tag the exact approved commit as `v6.6.3`. Pushing the tag only creates a CI build artifact. A maintainer must explicitly run the **Windows build and public release** workflow on the `v6.6.3` tag with `publish_release=true` to actually publish the release.
-8. Verify GitHub release checksums after publication and continue to describe the binary as **unsigned** unless Authenticode signing is independently verified.
-
-**Signing note:** `REQUIRE_SIGNED_RELEASE` checks for a signature but does not create one. Enable it only after an approved signing provider and signed build step are in place.
+- Automated Windows x64 build and security regression tests passed for v6.6.3.
+- The maintainer reported successful manual smoke tests for app launch, the three themes, TCP/UDP monitoring, process selection, Security Center, Connection History, CSV export, Simple and Advanced Network Diagnostics, and privacy settings on one Windows computer.
+- Broad Windows 10/11 compatibility and the self-update replacement path have **not** yet been fully verified across multiple environments.
+- Release publication requires an explicit workflow dispatch on a matching version tag; ordinary pushes cannot publish releases automatically.
+- The published executable is **unsigned**. A SHA-256 checksum can confirm download integrity but does not establish publisher identity.
 
 ## New in v6.6.2 — Midnight Dark + activity views
 
